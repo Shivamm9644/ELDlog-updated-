@@ -1,0 +1,5 @@
+{"properties": [{
+  "name": "cust.data.employee.name",
+  "type": "java.lang.String",
+  "description": "A description for 'cust.data.employee.name'"
+}]}

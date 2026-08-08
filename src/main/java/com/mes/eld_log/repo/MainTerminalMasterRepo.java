@@ -1,0 +1,37 @@
+package com.mes.eld_log.repo;
+
+import com.mes.eld_log.models.MainTerminalMaster;
+import java.util.List;
+import org.springframework.data.mongodb.repository.Aggregation;
+import org.springframework.data.mongodb.repository.MongoRepository;
+import org.springframework.data.mongodb.repository.Query;
+import org.springframework.stereotype.Repository;
+
+@Repository
+public interface MainTerminalMasterRepo extends MongoRepository<MainTerminalMaster, String> {
+   @Query("{ 'mainTerminalId' : ?0 }")
+   MainTerminalMaster findByMainTerminalId(Integer mainTerminalId);
+
+   @Query("{ 'mainTerminalId' : ?0}")
+   List<MainTerminalMaster> findAndViewByMainTerminalId(Integer mainTerminalId);
+
+   @Query("{ 'clientId' : ?0 }")
+   List<MainTerminalMaster> findAllMainTerminals(long clientId);
+
+   @Aggregation(
+      pipeline = {"{$group: { _id: '', maxID: {$max: $mainTerminalId }}}"}
+   )
+   Object findMaxIdInMainTerminalMaster();
+
+   @Query(
+      value = "{'mainTerminalId' : ?0}",
+      delete = true
+   )
+   MainTerminalMaster DeleteMainTerminalById(Integer mainTerminalId);
+
+   @Query(
+      value = "{'clientId' : ?0}",
+      delete = true
+   )
+   long DeleteMainTerminalMasterByClientId(long clientId);
+}

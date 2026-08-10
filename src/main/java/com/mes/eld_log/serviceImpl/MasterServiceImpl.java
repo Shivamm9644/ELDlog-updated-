@@ -2457,32 +2457,50 @@ public class MasterServiceImpl implements MasterService {
             clientMaster = (ClientMaster)this.clientMasterRepo.save(clientMaster);
             ObjectMapper objectMapper = new ObjectMapper();
 
-            for(int i = 0; i < clientMaster.getTerminalData().size(); ++i) {
-               String jsonString = objectMapper.writeValueAsString(clientMaster.getTerminalData().get(0));
-               JSONObject obj = new JSONObject(jsonString);
-               String terminalName = obj.get("terminalStreet").toString()
-                  + " "
-                  + obj.get("terminalCity").toString()
-                  + " "
-                  + obj.get("terminalCountryName").toString();
-               MainTerminalMaster mainTerminalMaster = new MainTerminalMaster();
-               ID = 0;
-               maxID = this.mainTerminalMasterRepo.findMaxIdInMainTerminalMaster();
-               if (maxID == null) {
-                  ID = 1;
-                  mainTerminalMaster.setMainTerminalId(ID);
-               } else {
-                  ID = (Integer)maxID;
-                  ID = ID + 1;
-                  mainTerminalMaster.setMainTerminalId(ID);
-               }
+            if (clientMaster.getTerminalData() != null) {
+               for(int i = 0; i < clientMaster.getTerminalData().size(); ++i) {
+                  String jsonString = objectMapper.writeValueAsString(clientMaster.getTerminalData().get(i));
+                  JSONObject obj = new JSONObject(jsonString);
+                  String street = obj.optString("terminalStreet", "");
+                  String city = obj.optString("terminalCity", "");
+                  String countryName = obj.optString("terminalCountryName", "");
+                  if (countryName.isEmpty() && obj.has("terminalCountryId")) {
+                     try {
+                        int countryId = Integer.parseInt(obj.get("terminalCountryId").toString());
+                        CountryMaster cMaster = this.countryMasterRepo.findByCountryId(countryId);
+                        if (cMaster != null && cMaster.getCountryName() != null) {
+                           countryName = cMaster.getCountryName();
+                        }
+                     } catch (Exception varEx) {
+                     }
+                  }
 
-               mainTerminalMaster.setMainTerminalName(terminalName);
-               mainTerminalMaster.setStateId(Long.parseLong(obj.get("terminalTimezoneId").toString()));
-               mainTerminalMaster.setClientId((long)clientMaster.getClientId().intValue());
-               mainTerminalMaster.setAddedTimestamp(instant.toEpochMilli());
-               mainTerminalMaster.setUpdatedTimestamp(instant.toEpochMilli());
-               mainTerminalMaster = (MainTerminalMaster)this.mainTerminalMasterRepo.save(mainTerminalMaster);
+                  String terminalName = (street + " " + city + " " + countryName).trim();
+                  MainTerminalMaster mainTerminalMaster = new MainTerminalMaster();
+                  ID = 0;
+                  maxID = this.mainTerminalMasterRepo.findMaxIdInMainTerminalMaster();
+                  if (maxID == null) {
+                     ID = 1;
+                     mainTerminalMaster.setMainTerminalId(ID);
+                  } else {
+                     ID = (Integer)maxID;
+                     ID = ID + 1;
+                     mainTerminalMaster.setMainTerminalId(ID);
+                  }
+
+                  mainTerminalMaster.setMainTerminalName(terminalName);
+                  if (obj.has("terminalTimezoneId") && !obj.isNull("terminalTimezoneId")) {
+                     try {
+                        mainTerminalMaster.setStateId(Long.parseLong(obj.get("terminalTimezoneId").toString()));
+                     } catch (Exception varEx) {
+                     }
+                  }
+
+                  mainTerminalMaster.setClientId((long)clientMaster.getClientId().intValue());
+                  mainTerminalMaster.setAddedTimestamp(instant.toEpochMilli());
+                  mainTerminalMaster.setUpdatedTimestamp(instant.toEpochMilli());
+                  mainTerminalMaster = (MainTerminalMaster)this.mainTerminalMasterRepo.save(mainTerminalMaster);
+               }
             }
 
             result.setResult(clientMaster);
@@ -2700,34 +2718,52 @@ public class MasterServiceImpl implements MasterService {
          this.mongoTemplate.findAndModify(query, update, ClientMaster.class);
          ObjectMapper objectMapper = new ObjectMapper();
 
-         for(int i = 0; i < clientMaster.getTerminalData().size(); ++i) {
-            String jsonString = objectMapper.writeValueAsString(clientMaster.getTerminalData().get(0));
-            JSONObject obj = new JSONObject(jsonString);
-            String terminalName = obj.get("terminalStreet").toString()
-               + " "
-               + obj.get("terminalCity").toString()
-               + " "
-               + obj.get("terminalCountryName").toString();
-            List<MainTerminalMaster> mainTerminals = this.mainTerminalMasterRepo.findAllMainTerminals((long)clientMaster.getClientId().intValue());
-            if (mainTerminals.size() <= 0) {
-               MainTerminalMaster mainTerminalMaster = new MainTerminalMaster();
-               Integer ID = 0;
-               Object maxID = this.mainTerminalMasterRepo.findMaxIdInMainTerminalMaster();
-               if (maxID == null) {
-                  ID = 1;
-                  mainTerminalMaster.setMainTerminalId(ID);
-               } else {
-                  ID = (Integer)maxID;
-                  ID = ID + 1;
-                  mainTerminalMaster.setMainTerminalId(ID);
+         if (clientMaster.getTerminalData() != null) {
+            for(int i = 0; i < clientMaster.getTerminalData().size(); ++i) {
+               String jsonString = objectMapper.writeValueAsString(clientMaster.getTerminalData().get(i));
+               JSONObject obj = new JSONObject(jsonString);
+               String street = obj.optString("terminalStreet", "");
+               String city = obj.optString("terminalCity", "");
+               String countryName = obj.optString("terminalCountryName", "");
+               if (countryName.isEmpty() && obj.has("terminalCountryId")) {
+                  try {
+                     int countryId = Integer.parseInt(obj.get("terminalCountryId").toString());
+                     CountryMaster cMaster = this.countryMasterRepo.findByCountryId(countryId);
+                     if (cMaster != null && cMaster.getCountryName() != null) {
+                        countryName = cMaster.getCountryName();
+                     }
+                  } catch (Exception varEx) {
+                  }
                }
 
-               mainTerminalMaster.setMainTerminalName(terminalName);
-               mainTerminalMaster.setStateId(Long.parseLong(obj.get("terminalTimezoneId").toString()));
-               mainTerminalMaster.setClientId((long)clientMaster.getClientId().intValue());
-               mainTerminalMaster.setAddedTimestamp(instant.toEpochMilli());
-               mainTerminalMaster.setUpdatedTimestamp(instant.toEpochMilli());
-               mainTerminalMaster = (MainTerminalMaster)this.mainTerminalMasterRepo.save(mainTerminalMaster);
+               String terminalName = (street + " " + city + " " + countryName).trim();
+               List<MainTerminalMaster> mainTerminals = this.mainTerminalMasterRepo.findAllMainTerminals((long)clientMaster.getClientId().intValue());
+               if (mainTerminals.size() <= 0) {
+                  MainTerminalMaster mainTerminalMaster = new MainTerminalMaster();
+                  Integer ID = 0;
+                  Object maxID = this.mainTerminalMasterRepo.findMaxIdInMainTerminalMaster();
+                  if (maxID == null) {
+                     ID = 1;
+                     mainTerminalMaster.setMainTerminalId(ID);
+                  } else {
+                     ID = (Integer)maxID;
+                     ID = ID + 1;
+                     mainTerminalMaster.setMainTerminalId(ID);
+                  }
+
+                  mainTerminalMaster.setMainTerminalName(terminalName);
+                  if (obj.has("terminalTimezoneId") && !obj.isNull("terminalTimezoneId")) {
+                     try {
+                        mainTerminalMaster.setStateId(Long.parseLong(obj.get("terminalTimezoneId").toString()));
+                     } catch (Exception varEx) {
+                     }
+                  }
+
+                  mainTerminalMaster.setClientId((long)clientMaster.getClientId().intValue());
+                  mainTerminalMaster.setAddedTimestamp(instant.toEpochMilli());
+                  mainTerminalMaster.setUpdatedTimestamp(instant.toEpochMilli());
+                  mainTerminalMaster = (MainTerminalMaster)this.mainTerminalMasterRepo.save(mainTerminalMaster);
+               }
             }
          }
 

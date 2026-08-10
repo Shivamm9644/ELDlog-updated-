@@ -19,53 +19,50 @@ import org.springframework.security.web.authentication.UsernamePasswordAuthentic
 @Configuration
 @EnableWebSecurity
 @EnableGlobalMethodSecurity(
-   prePostEnabled = true
+        prePostEnabled = true
 )
 public class SecurityConfing extends WebSecurityConfigurerAdapter {
-   @Resource(
-      name = "userInfoService"
-   )
-   private UserDetailsService userDetailsService;
-   @Autowired
-   private org.springframework.security.web.AuthenticationEntryPoint authEntryPoint;
 
-   @Bean
-   public AuthenticationManager authenticationManagerBean() throws Exception {
-      return super.authenticationManagerBean();
-   }
+    @Resource(
+            name = "userInfoService"
+    )
+    private UserDetailsService userDetailsService;
+    @Autowired
+    private org.springframework.security.web.AuthenticationEntryPoint authEntryPoint;
 
-   @Autowired
-   public void configure(AuthenticationManagerBuilder auth) throws Exception {
-      auth.userDetailsService(this.userDetailsService).passwordEncoder(this.encoder());
-   }
+    @Bean
+    public AuthenticationManager authenticationManagerBean() throws Exception {
+        return super.authenticationManagerBean();
+    }
 
-   @Bean
-   public AuthenticationFilter authenticationTokenFilterBean() throws Exception {
-      return new AuthenticationFilter();
-   }
+    @Autowired
+    public void configure(AuthenticationManagerBuilder auth) throws Exception {
+        auth.userDetailsService(this.userDetailsService).passwordEncoder(this.encoder());
+    }
 
-   protected void configure(HttpSecurity http) throws Exception {
-      ((HttpSecurity)((AuthorizedUrl)((AuthorizedUrl)((AuthorizedUrl)((HttpSecurity)((HttpSecurity)http.cors().and()).csrf().disable())
-                     .authorizeRequests()
-                     .antMatchers(new String[]{"/auth/login", "/auth/login_web"}))
-                  .permitAll()
-                  .antMatchers(new String[]{"/download/*"}))
-               .permitAll()
-               .antMatchers(new String[]{"/scheduledcalls/*"}))
-            .permitAll()
-            .and())
-         .sessionManagement()
-         .sessionCreationPolicy(SessionCreationPolicy.STATELESS);
-      http.addFilterBefore(this.authenticationTokenFilterBean(), UsernamePasswordAuthenticationFilter.class);
-   }
+    @Bean
+    public AuthenticationFilter authenticationTokenFilterBean() throws Exception {
+        return new AuthenticationFilter();
+    }
 
-   @Autowired
-   public void configureGlobal(AuthenticationManagerBuilder auth) throws Exception {
-      auth.inMemoryAuthentication().withUser("root").password("$2a$04$FlHdRJcVCeC2hzQTzPs7XOPkBMn8h99GstJ5WxkKBZd2mXDSliY0K").roles(new String[]{"USER"});
-   }
+    protected void configure(HttpSecurity http) throws Exception {
+        http.cors().and().csrf().disable()
+                .authorizeRequests()
+                .antMatchers(org.springframework.http.HttpMethod.OPTIONS, "/**").permitAll()
+                .antMatchers("/auth/**", "/master/**", "/dispatch/**", "/service/**", "/eldchart/**", "/eldChart/**", "/userInfo/**", "/download/**", "/scheduledcalls/**").permitAll()
+                .anyRequest().authenticated()
+                .and()
+                .sessionManagement().sessionCreationPolicy(SessionCreationPolicy.STATELESS);
+        http.addFilterBefore(this.authenticationTokenFilterBean(), UsernamePasswordAuthenticationFilter.class);
+    }
 
-   @Bean
-   public BCryptPasswordEncoder encoder() {
-      return new BCryptPasswordEncoder();
-   }
+    @Autowired
+    public void configureGlobal(AuthenticationManagerBuilder auth) throws Exception {
+        auth.inMemoryAuthentication().withUser("root").password("$2a$04$FlHdRJcVCeC2hzQTzPs7XOPkBMn8h99GstJ5WxkKBZd2mXDSliY0K").roles(new String[]{"USER"});
+    }
+
+    @Bean
+    public BCryptPasswordEncoder encoder() {
+        return new BCryptPasswordEncoder();
+    }
 }

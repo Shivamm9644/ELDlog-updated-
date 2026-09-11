@@ -142,7 +142,14 @@ public class DispatchController {
    }
 
    @PostMapping({"/add_drivering_status_from_web"})
-   public ResponseEntity<ResultWrapper<String>> AddDriveringStatusFromWeb(@Valid @RequestBody DriveringStatus driveringStatus) throws UnsupportedEncodingException, JsonProcessingException {
+   public ResponseEntity<ResultWrapper<String>> AddDriveringStatusFromWeb(@Valid @RequestBody DriveringStatus driveringStatus, javax.servlet.http.HttpServletRequest request) throws UnsupportedEncodingException, JsonProcessingException {
+      com.mes.eld_log.models.UserMaster user = imobilityUtils.getLoggedInUser(request);
+      if (user != null && (user.getUserTypeId() == 2 || user.getUserTypeId() == 3)) {
+         ResultWrapper<String> result = new ResultWrapper<>();
+         result.setStatus(com.mes.eld_log.results.Result.FAIL);
+         result.setMessage("Unauthorized: Company Admin or Support Personnel cannot perform this action.");
+         return new ResponseEntity(result, HttpStatus.FORBIDDEN);
+      }
       ResultWrapper<String> result = null;
       result = this.dispatchService.AddDriveringStatusFromWeb(driveringStatus);
       return new ResponseEntity(result, HttpStatus.OK);
@@ -159,7 +166,11 @@ public class DispatchController {
    }
 
    @PostMapping({"/view_drivering_status"})
-   public ResponseEntity<ResultWrapper<List<DriveringStatusViewDto>>> ViewDriveringStatus(@Valid @RequestBody DriveringStatusCRUDDto driveringStatusCRUDDto) throws UnsupportedEncodingException, JsonProcessingException {
+   public ResponseEntity<ResultWrapper<List<DriveringStatusViewDto>>> ViewDriveringStatus(@Valid @RequestBody DriveringStatusCRUDDto driveringStatusCRUDDto, javax.servlet.http.HttpServletRequest request) throws UnsupportedEncodingException, JsonProcessingException {
+      com.mes.eld_log.models.UserMaster user = imobilityUtils.getLoggedInUser(request);
+      if (user != null && (user.getUserTypeId() == 2 || user.getUserTypeId() == 3)) {
+         driveringStatusCRUDDto.setClientId((long) user.getClientId());
+      }
       ResultWrapper<List<DriveringStatusViewDto>> result = null;
       String tokenValid = "";
 
@@ -264,7 +275,11 @@ public class DispatchController {
    }
 
    @PostMapping({"/view_unidentified_events"})
-   public ResponseEntity<ResultWrapper<List<DriveringStatusViewDto>>> ViewUnidentifiedEvents(@Valid @RequestBody DriveringStatusCRUDDto driveringStatusCRUDDto) throws UnsupportedEncodingException, JsonProcessingException {
+   public ResponseEntity<ResultWrapper<List<DriveringStatusViewDto>>> ViewUnidentifiedEvents(@Valid @RequestBody DriveringStatusCRUDDto driveringStatusCRUDDto, javax.servlet.http.HttpServletRequest request) throws UnsupportedEncodingException, JsonProcessingException {
+      com.mes.eld_log.models.UserMaster user = imobilityUtils.getLoggedInUser(request);
+      if (user != null && (user.getUserTypeId() == 2 || user.getUserTypeId() == 3)) {
+         driveringStatusCRUDDto.setClientId((long) user.getClientId());
+      }
       ResultWrapper<List<DriveringStatusViewDto>> result = null;
       result = this.dispatchService.ViewUnidentifiedEvents(driveringStatusCRUDDto);
       return new ResponseEntity(result, HttpStatus.OK);
@@ -328,28 +343,56 @@ public class DispatchController {
    }
 
    @PostMapping({"/update_driver_log"})
-   public ResponseEntity<ResultWrapper<String>> UpdateDriverLog(@Valid @RequestBody DriveringStatusCRUDDto driveringStatusCRUDDto) throws UnsupportedEncodingException, JsonProcessingException {
+   public ResponseEntity<ResultWrapper<String>> UpdateDriverLog(@Valid @RequestBody DriveringStatusCRUDDto driveringStatusCRUDDto, javax.servlet.http.HttpServletRequest request) throws UnsupportedEncodingException, JsonProcessingException {
+      com.mes.eld_log.models.UserMaster user = imobilityUtils.getLoggedInUser(request);
+      if (user != null && user.getUserTypeId() == 3) {
+         ResultWrapper<String> result = new ResultWrapper<>();
+         result.setStatus(com.mes.eld_log.results.Result.FAIL);
+         result.setMessage("Unauthorized: Support Personnel cannot perform this action.");
+         return new ResponseEntity(result, HttpStatus.FORBIDDEN);
+      }
       ResultWrapper<String> result = null;
       result = this.dispatchService.UpdateDriverLog(driveringStatusCRUDDto);
       return new ResponseEntity(result, HttpStatus.OK);
    }
 
    @PostMapping({"/update_and_enable_disable_driver_log"})
-   public ResponseEntity<ResultWrapper<String>> UpdateAndEnableDisableDriverLog(@Valid @RequestBody DriveringStatusCRUDDto driveringStatusCRUDDto) throws UnsupportedEncodingException, JsonProcessingException {
+   public ResponseEntity<ResultWrapper<String>> UpdateAndEnableDisableDriverLog(@Valid @RequestBody DriveringStatusCRUDDto driveringStatusCRUDDto, javax.servlet.http.HttpServletRequest request) throws UnsupportedEncodingException, JsonProcessingException {
+      com.mes.eld_log.models.UserMaster user = imobilityUtils.getLoggedInUser(request);
+      if (user != null && user.getUserTypeId() == 3) {
+         ResultWrapper<String> result = new ResultWrapper<>();
+         result.setStatus(com.mes.eld_log.results.Result.FAIL);
+         result.setMessage("Unauthorized: Support Personnel cannot perform this action.");
+         return new ResponseEntity(result, HttpStatus.FORBIDDEN);
+      }
       ResultWrapper<String> result = null;
       result = this.dispatchService.UpdateAndEnableDisableDriverLog(driveringStatusCRUDDto);
       return new ResponseEntity(result, HttpStatus.OK);
    }
 
    @PostMapping({"/update_and_shift_driver_log"})
-   public ResponseEntity<ResultWrapper<String>> UpdateAndShiftDriverLog(@Valid @RequestBody DriveringStatusLogViewDto driveringStatusLogViewDto) throws UnsupportedEncodingException, JsonProcessingException {
+   public ResponseEntity<ResultWrapper<String>> UpdateAndShiftDriverLog(@Valid @RequestBody DriveringStatusLogViewDto driveringStatusLogViewDto, javax.servlet.http.HttpServletRequest request) throws UnsupportedEncodingException, JsonProcessingException {
+      com.mes.eld_log.models.UserMaster user = imobilityUtils.getLoggedInUser(request);
+      if (user != null && user.getUserTypeId() == 3) {
+         ResultWrapper<String> result = new ResultWrapper<>();
+         result.setStatus(com.mes.eld_log.results.Result.FAIL);
+         result.setMessage("Unauthorized: Support Personnel cannot perform this action.");
+         return new ResponseEntity(result, HttpStatus.FORBIDDEN);
+      }
       ResultWrapper<String> result = null;
       result = this.dispatchService.UpdateAndShiftDriverLog(driveringStatusLogViewDto);
       return new ResponseEntity(result, HttpStatus.OK);
    }
 
    @PostMapping({"/update_and_shift_driver_log_in_bulk"})
-   public ResponseEntity<ResultWrapper<String>> UpdateAndShiftDriverLogInBulk(@Valid @RequestBody AssignLogToDriverDto assignLogToDriverDto) throws UnsupportedEncodingException, JsonProcessingException {
+   public ResponseEntity<ResultWrapper<String>> UpdateAndShiftDriverLogInBulk(@Valid @RequestBody AssignLogToDriverDto assignLogToDriverDto, javax.servlet.http.HttpServletRequest request) throws UnsupportedEncodingException, JsonProcessingException {
+      com.mes.eld_log.models.UserMaster user = imobilityUtils.getLoggedInUser(request);
+      if (user != null && user.getUserTypeId() == 3) {
+         ResultWrapper<String> result = new ResultWrapper<>();
+         result.setStatus(com.mes.eld_log.results.Result.FAIL);
+         result.setMessage("Unauthorized: Support Personnel cannot perform this action.");
+         return new ResponseEntity(result, HttpStatus.FORBIDDEN);
+      }
       ResultWrapper<String> result = null;
       result = this.dispatchService.UpdateAndShiftDriverLogInBulk(assignLogToDriverDto);
       return new ResponseEntity(result, HttpStatus.OK);
@@ -372,7 +415,11 @@ public class DispatchController {
    }
 
    @PostMapping({"/view_live_data_log"})
-   public ResponseEntity<ResultWrapper<List<LiveDataLogViewDto>>> ViewLiveDataLog(@Valid @RequestBody ClientMasterCRUDDto clientMasterCRUDDto) throws UnsupportedEncodingException, JsonProcessingException {
+   public ResponseEntity<ResultWrapper<List<LiveDataLogViewDto>>> ViewLiveDataLog(@Valid @RequestBody ClientMasterCRUDDto clientMasterCRUDDto, javax.servlet.http.HttpServletRequest request) throws UnsupportedEncodingException, JsonProcessingException {
+      com.mes.eld_log.models.UserMaster user = imobilityUtils.getLoggedInUser(request);
+      if (user != null && (user.getUserTypeId() == 2 || user.getUserTypeId() == 3)) {
+         clientMasterCRUDDto.setClientId((int) user.getClientId());
+      }
       ResultWrapper<List<LiveDataLogViewDto>> result = null;
       result = this.dispatchService.ViewLiveDataLog(clientMasterCRUDDto);
       return new ResponseEntity(result, HttpStatus.OK);
@@ -407,7 +454,11 @@ public class DispatchController {
    }
 
    @PostMapping({"/view_ifta_report"})
-   public ResponseEntity<ResultWrapper<List<IftaReportViewDto>>> ViewIftaReportNew(@Valid @RequestBody DriveringStatusCRUDDto driveringStatusCRUDDto) throws UnsupportedEncodingException, JsonProcessingException {
+   public ResponseEntity<ResultWrapper<List<IftaReportViewDto>>> ViewIftaReportNew(@Valid @RequestBody DriveringStatusCRUDDto driveringStatusCRUDDto, javax.servlet.http.HttpServletRequest request) throws UnsupportedEncodingException, JsonProcessingException {
+      com.mes.eld_log.models.UserMaster user = imobilityUtils.getLoggedInUser(request);
+      if (user != null && (user.getUserTypeId() == 2 || user.getUserTypeId() == 3)) {
+         driveringStatusCRUDDto.setClientId((long) user.getClientId());
+      }
       ResultWrapper<List<IftaReportViewDto>> result = null;
       result = this.dispatchService.ViewIftaReportNew(driveringStatusCRUDDto);
       return new ResponseEntity(result, HttpStatus.OK);
@@ -501,7 +552,11 @@ public class DispatchController {
    }
 
    @PostMapping({"/view_dvir_data"})
-   public ResponseEntity<ResultWrapper<List<DVIRDataCRUDDto>>> ViewDVIRData(@Valid @RequestBody DVIRDataCRUDDto dvirDataCRUDDto) throws UnsupportedEncodingException, JsonProcessingException {
+   public ResponseEntity<ResultWrapper<List<DVIRDataCRUDDto>>> ViewDVIRData(@Valid @RequestBody DVIRDataCRUDDto dvirDataCRUDDto, javax.servlet.http.HttpServletRequest request) throws UnsupportedEncodingException, JsonProcessingException {
+      com.mes.eld_log.models.UserMaster user = imobilityUtils.getLoggedInUser(request);
+      if (user != null && (user.getUserTypeId() == 2 || user.getUserTypeId() == 3)) {
+         dvirDataCRUDDto.setClientId((int)user.getClientId());
+      }
       ResultWrapper<List<DVIRDataCRUDDto>> result = null;
       String tokenValid = "";
 

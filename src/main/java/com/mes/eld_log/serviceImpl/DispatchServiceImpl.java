@@ -1,14 +1,109 @@
 package com.mes.eld_log.serviceImpl;
 
+import java.awt.Color;
+import java.awt.image.BufferedImage;
+import java.io.BufferedReader;
+import java.io.ByteArrayOutputStream;
+import java.io.File;
+import java.io.FileOutputStream;
+import java.io.FileWriter;
+import java.io.IOException;
+import java.io.InputStreamReader;
+import java.io.OutputStream;
+import java.net.HttpURLConnection;
+import java.net.URL;
+import java.net.URLConnection;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
+import java.nio.file.StandardCopyOption;
+import java.nio.file.StandardOpenOption;
+import java.text.DecimalFormat;
+import java.text.SimpleDateFormat;
+import java.time.Clock;
+import java.time.Duration;
+import java.time.Instant;
+import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.time.LocalTime;
+import java.time.ZoneId;
+import java.time.ZoneOffset;
+import java.time.ZonedDateTime;
+import java.time.format.DateTimeFormatter;
+import java.time.format.DateTimeParseException;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.Comparator;
+import java.util.Date;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Map.Entry;
+import java.util.Set;
+import java.util.TimeZone;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
+
+import javax.activation.DataHandler;
+import javax.activation.DataSource;
+import javax.imageio.ImageIO;
+import javax.mail.MessagingException;
+import javax.mail.internet.MimeBodyPart;
+import javax.mail.internet.MimeMessage;
+import javax.mail.internet.MimeMultipart;
+import javax.mail.util.ByteArrayDataSource;
+
+import org.apache.poi.xssf.usermodel.XSSFSheet;
+import org.apache.poi.xssf.usermodel.XSSFWorkbook;
+import org.bson.types.ObjectId;
+import org.jfree.chart.ChartFactory;
+import org.jfree.chart.JFreeChart;
+import org.jfree.chart.axis.SymbolAxis;
+import org.jfree.chart.block.BlockBorder;
+import org.jfree.chart.plot.PlotOrientation;
+import org.jfree.chart.plot.XYPlot;
+import org.jfree.chart.renderer.xy.XYLineAndShapeRenderer;
+import org.jfree.data.xy.XYDataset;
+import org.jfree.data.xy.XYSeries;
+import org.jfree.data.xy.XYSeriesCollection;
+import org.json.JSONObject;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
+import org.springframework.data.domain.Sort.Direction;
+import org.springframework.data.mongodb.core.MongoTemplate;
+import org.springframework.data.mongodb.core.aggregation.Aggregation;
+import org.springframework.data.mongodb.core.aggregation.AggregationOperation;
+import org.springframework.data.mongodb.core.aggregation.AggregationResults;
+import org.springframework.data.mongodb.core.aggregation.GroupOperation;
+import org.springframework.data.mongodb.core.aggregation.LookupOperation;
+import org.springframework.data.mongodb.core.aggregation.MatchOperation;
+import org.springframework.data.mongodb.core.aggregation.ProjectionOperation;
+import org.springframework.data.mongodb.core.query.Criteria;
+import org.springframework.data.mongodb.core.query.Query;
+import org.springframework.data.mongodb.core.query.Update;
+import org.springframework.mail.javamail.JavaMailSender;
+import org.springframework.mail.javamail.MimeMessageHelper;
+import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
+import org.springframework.stereotype.Service;
+import org.springframework.util.StringUtils;
+import org.springframework.web.multipart.MultipartFile;
+
 import com.itextpdf.text.BaseColor;
 import com.itextpdf.text.Chunk;
 import com.itextpdf.text.Document;
+import com.itextpdf.text.Element;
 import com.itextpdf.text.Font;
+import com.itextpdf.text.Font.FontFamily;
 import com.itextpdf.text.Image;
 import com.itextpdf.text.PageSize;
 import com.itextpdf.text.Paragraph;
 import com.itextpdf.text.Phrase;
-import com.itextpdf.text.Font.FontFamily;
 import com.itextpdf.text.pdf.BaseFont;
 import com.itextpdf.text.pdf.PdfEncryptor;
 import com.itextpdf.text.pdf.PdfPCell;
@@ -134,102 +229,6 @@ import com.mes.eld_log.results.Result;
 import com.mes.eld_log.results.ResultWrapper;
 import com.mes.eld_log.service.DispatchService;
 import com.mes.eld_log.util.eldLogUtils;
-import java.awt.Color;
-import java.awt.image.BufferedImage;
-import java.io.BufferedReader;
-import java.io.ByteArrayOutputStream;
-import java.io.File;
-import java.io.FileOutputStream;
-import java.io.FileWriter;
-import java.io.IOException;
-import java.io.InputStreamReader;
-import java.io.OutputStream;
-import java.net.HttpURLConnection;
-import java.net.URL;
-import java.net.URLConnection;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.nio.file.Paths;
-import java.nio.file.StandardCopyOption;
-import java.nio.file.StandardOpenOption;
-import java.text.DecimalFormat;
-import java.text.SimpleDateFormat;
-import java.time.Clock;
-import java.time.Duration;
-import java.time.Instant;
-import java.time.LocalDate;
-import java.time.LocalDateTime;
-import java.time.LocalTime;
-import java.time.ZoneId;
-import java.time.ZoneOffset;
-import java.time.ZonedDateTime;
-import java.time.format.DateTimeFormatter;
-import java.time.format.DateTimeParseException;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collections;
-import java.util.Comparator;
-import java.util.Date;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.LinkedHashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
-import java.util.TimeZone;
-import java.util.Map.Entry;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.stream.Collectors;
-import java.util.stream.Stream;
-import javax.activation.DataHandler;
-import javax.activation.DataSource;
-import javax.imageio.ImageIO;
-import javax.mail.MessagingException;
-import javax.mail.internet.MimeBodyPart;
-import javax.mail.internet.MimeMessage;
-import javax.mail.internet.MimeMultipart;
-import javax.mail.util.ByteArrayDataSource;
-import org.apache.poi.xssf.usermodel.XSSFSheet;
-import org.apache.poi.xssf.usermodel.XSSFWorkbook;
-import org.bson.types.ObjectId;
-import com.itextpdf.text.Element;
-import org.jfree.chart.ChartFactory;
-import org.jfree.chart.JFreeChart;
-import org.jfree.chart.axis.SymbolAxis;
-import org.jfree.chart.block.BlockBorder;
-import org.jfree.chart.plot.PlotOrientation;
-import org.jfree.chart.plot.XYPlot;
-import org.jfree.chart.renderer.xy.XYLineAndShapeRenderer;
-import org.jfree.data.xy.XYDataset;
-import org.jfree.data.xy.XYSeries;
-import org.jfree.data.xy.XYSeriesCollection;
-import java.awt.BasicStroke;
-import java.net.URL;
-import java.text.SimpleDateFormat;
-
-import org.json.JSONObject;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.data.domain.PageRequest;
-import org.springframework.data.domain.Pageable;
-import org.springframework.data.domain.Sort;
-import org.springframework.data.domain.Sort.Direction;
-import org.springframework.data.mongodb.core.MongoTemplate;
-import org.springframework.data.mongodb.core.aggregation.Aggregation;
-import org.springframework.data.mongodb.core.aggregation.AggregationOperation;
-import org.springframework.data.mongodb.core.aggregation.AggregationResults;
-import org.springframework.data.mongodb.core.aggregation.GroupOperation;
-import org.springframework.data.mongodb.core.aggregation.LookupOperation;
-import org.springframework.data.mongodb.core.aggregation.MatchOperation;
-import org.springframework.data.mongodb.core.aggregation.ProjectionOperation;
-import org.springframework.data.mongodb.core.query.Criteria;
-import org.springframework.data.mongodb.core.query.Query;
-import org.springframework.data.mongodb.core.query.Update;
-import org.springframework.mail.javamail.JavaMailSender;
-import org.springframework.mail.javamail.MimeMessageHelper;
-import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
-import org.springframework.stereotype.Service;
-import org.springframework.util.StringUtils;
-import org.springframework.web.multipart.MultipartFile;
 
 @Service("dispatchService")
 public class DispatchServiceImpl implements DispatchService {
@@ -357,7 +356,8 @@ public class DispatchServiceImpl implements DispatchService {
                 dispatchDetails = (DispatchDetails) this.dispatchDetailsRepo.save(dispatchDetails);
             }
 
-            DispatchDetailViewDto dispatchDetailViewDto = this.dispatchDetailsRepo.findDispatchDetailsByTimestamp(dispatchDetails.getAddedTimestamp());
+            DispatchDetailViewDto dispatchDetailViewDto = this.dispatchDetailsRepo
+                    .findDispatchDetailsByTimestamp(dispatchDetails.getAddedTimestamp());
             ArrayList<OtherCharges> addOtherChargeData = dispatchDetailCRUDDto.getOtherChargeData();
             OtherCharges otherCharges = null;
 
@@ -418,10 +418,12 @@ public class DispatchServiceImpl implements DispatchService {
 
                 try {
                     for (int i = 0; i < dispatchDetailViewDto.size(); ++i) {
-                        CustomerMaster customerInfo = this.customerMasterRepo.findByCustomerId((int) dispatchDetailViewDto.get(i).getCustomerId());
+                        CustomerMaster customerInfo = this.customerMasterRepo
+                                .findByCustomerId((int) dispatchDetailViewDto.get(i).getCustomerId());
                         dispatchDetailViewDto.get(i).setCustomerName(customerInfo.getCustomerName());
                         sDebug = sDebug + "3,";
-                        List<ShipperReceiverDetails> srDetails = this.shipperReceiverDetailsRepo.findByDispatchSRId(dispatchDetailViewDto.get(i).get_id());
+                        List<ShipperReceiverDetails> srDetails = this.shipperReceiverDetailsRepo
+                                .findByDispatchSRId(dispatchDetailViewDto.get(i).get_id());
                         sDebug = sDebug + "4,";
                         if (srDetails.size() > 0) {
                             sDebug = sDebug + "5,";
@@ -429,15 +431,19 @@ public class DispatchServiceImpl implements DispatchService {
                             for (int sr = 0; sr < srDetails.size(); ++sr) {
                                 sDebug = sDebug + "6,";
                                 if (srDetails.get(sr).getShipperId() > 0L) {
-                                    ShipperMaster shipperInfo = this.shipperMasterRepo.findByShipperId((int) srDetails.get(sr).getShipperId());
-                                    dispatchDetailViewDto.get(i).setShipperId((long) shipperInfo.getShipperId().intValue());
+                                    ShipperMaster shipperInfo = this.shipperMasterRepo
+                                            .findByShipperId((int) srDetails.get(sr).getShipperId());
+                                    dispatchDetailViewDto.get(i)
+                                            .setShipperId((long) shipperInfo.getShipperId().intValue());
                                     dispatchDetailViewDto.get(i).setShipperName(shipperInfo.getShipperName());
                                     dispatchDetailViewDto.get(i).setShippingDate(srDetails.get(sr).getDate());
                                 }
 
                                 if (srDetails.get(sr).getReceiverId() > 0L) {
-                                    ReceiverMaster receiverInfo = this.receiverMasterRepo.findByReceiverId((int) srDetails.get(sr).getReceiverId());
-                                    dispatchDetailViewDto.get(i).setReceiverId((long) receiverInfo.getReceiverId().intValue());
+                                    ReceiverMaster receiverInfo = this.receiverMasterRepo
+                                            .findByReceiverId((int) srDetails.get(sr).getReceiverId());
+                                    dispatchDetailViewDto.get(i)
+                                            .setReceiverId((long) receiverInfo.getReceiverId().intValue());
                                     dispatchDetailViewDto.get(i).setReceiverName(receiverInfo.getReceiverName());
                                     dispatchDetailViewDto.get(i).setReceivingDate(srDetails.get(sr).getDate());
                                 }
@@ -481,13 +487,16 @@ public class DispatchServiceImpl implements DispatchService {
                 Query query = new Query(Criteria.where("driverId").is(driverId));
                 query.limit(1);
                 query.with(pageableRequest);
-                List<DispatchDataViewDto> dispatchData = this.mongoTemplate.find(query, DispatchDataViewDto.class, "dispatch_details");
+                List<DispatchDataViewDto> dispatchData = this.mongoTemplate.find(query, DispatchDataViewDto.class,
+                        "dispatch_details");
 
                 for (int i = 0; i < dispatchData.size(); ++i) {
                     dispatchId = dispatchData.get(i).get_id();
-                    CustomerMaster customerInfo = this.customerMasterRepo.findByCustomerId((int) dispatchData.get(i).getCustomerId());
+                    CustomerMaster customerInfo = this.customerMasterRepo
+                            .findByCustomerId((int) dispatchData.get(i).getCustomerId());
                     dispatchData.get(i).setCustomerName(customerInfo.getCustomerName());
-                    EmployeeMaster empInfo = this.employeeMasterRepo.findByEmployeeId((int) dispatchData.get(i).getDriverId());
+                    EmployeeMaster empInfo = this.employeeMasterRepo
+                            .findByEmployeeId((int) dispatchData.get(i).getDriverId());
                     dispatchData.get(i).setDriverName(empInfo.getFirstName() + " " + empInfo.getLastName());
                     dispatchData.get(i).setDivR(empInfo.getDivR());
                 }
@@ -497,40 +506,53 @@ public class DispatchServiceImpl implements DispatchService {
                 List<ReceiverDataViewDto> receiverData = null;
                 if (!dispatchId.equals("")) {
                     otherChargesData = this.otherChargesRepo.findAndViewByDispatchId(dispatchId);
-                    List<ShipperReceiverDetails> srDetails = this.shipperReceiverDetailsRepo.findByDispatchSRId(dispatchId);
+                    List<ShipperReceiverDetails> srDetails = this.shipperReceiverDetailsRepo
+                            .findByDispatchSRId(dispatchId);
                     if (srDetails.size() > 0) {
                         for (int sr = 0; sr < srDetails.size(); ++sr) {
                             if (srDetails.get(sr).getShipperId() > 0L) {
-                                shipperData = this.shipperReceiverDetailsRepo.findByDispatchIdOfShipperData(dispatchId, srDetails.get(sr).getShipperId());
+                                shipperData = this.shipperReceiverDetailsRepo.findByDispatchIdOfShipperData(dispatchId,
+                                        srDetails.get(sr).getShipperId());
                                 if (shipperData.size() > 0) {
                                     for (int i = 0; i < shipperData.size(); ++i) {
-                                        ShipperMaster shipperInfo = this.shipperMasterRepo.findByShipperId((int) shipperData.get(i).getShipperId());
+                                        ShipperMaster shipperInfo = this.shipperMasterRepo
+                                                .findByShipperId((int) shipperData.get(i).getShipperId());
                                         shipperData.get(i).setShipperName(shipperInfo.getShipperName());
-                                        CountryMaster countryInfo = this.countryMasterRepo.findByCountryId((int) shipperData.get(i).getCountryId());
+                                        CountryMaster countryInfo = this.countryMasterRepo
+                                                .findByCountryId((int) shipperData.get(i).getCountryId());
                                         shipperData.get(i).setCountryName(countryInfo.getCountryName());
-                                        StateMaster stateInfo = this.stateMasterRepo.findByStateId((int) shipperData.get(i).getStateId());
+                                        StateMaster stateInfo = this.stateMasterRepo
+                                                .findByStateId((int) shipperData.get(i).getStateId());
                                         shipperData.get(i).setStateName(stateInfo.getStateName());
-                                        CityMaster cityInfo = this.cityMasterRepo.findByCityId((int) shipperData.get(i).getCityId());
+                                        CityMaster cityInfo = this.cityMasterRepo
+                                                .findByCityId((int) shipperData.get(i).getCityId());
                                         shipperData.get(i).setCityName(cityInfo.getCityName());
-                                        ReferModeMaster referModeInfo = this.referModeMasterRepo.findByReferModeId((int) shipperData.get(i).getReferModeId());
+                                        ReferModeMaster referModeInfo = this.referModeMasterRepo
+                                                .findByReferModeId((int) shipperData.get(i).getReferModeId());
                                         shipperData.get(i).setReferModeName(referModeInfo.getReferModeName());
                                     }
                                 }
                             }
 
                             if (srDetails.get(sr).getReceiverId() > 0L) {
-                                receiverData = this.shipperReceiverDetailsRepo.findByDispatchIdOfReceiverData(dispatchId, srDetails.get(sr).getReceiverId());
+                                receiverData = this.shipperReceiverDetailsRepo
+                                        .findByDispatchIdOfReceiverData(dispatchId, srDetails.get(sr).getReceiverId());
                                 if (receiverData.size() > 0) {
                                     for (int i = 0; i < receiverData.size(); ++i) {
-                                        ReceiverMaster receiverInfo = this.receiverMasterRepo.findByReceiverId((int) receiverData.get(i).getReceiverId());
+                                        ReceiverMaster receiverInfo = this.receiverMasterRepo
+                                                .findByReceiverId((int) receiverData.get(i).getReceiverId());
                                         receiverData.get(i).setReceiverName(receiverInfo.getReceiverName());
-                                        CountryMaster countryInfo = this.countryMasterRepo.findByCountryId((int) receiverData.get(i).getCountryId());
+                                        CountryMaster countryInfo = this.countryMasterRepo
+                                                .findByCountryId((int) receiverData.get(i).getCountryId());
                                         receiverData.get(i).setCountryName(countryInfo.getCountryName());
-                                        StateMaster stateInfo = this.stateMasterRepo.findByStateId((int) receiverData.get(i).getStateId());
+                                        StateMaster stateInfo = this.stateMasterRepo
+                                                .findByStateId((int) receiverData.get(i).getStateId());
                                         receiverData.get(i).setStateName(stateInfo.getStateName());
-                                        CityMaster cityInfo = this.cityMasterRepo.findByCityId((int) receiverData.get(i).getCityId());
+                                        CityMaster cityInfo = this.cityMasterRepo
+                                                .findByCityId((int) receiverData.get(i).getCityId());
                                         receiverData.get(i).setCityName(cityInfo.getCityName());
-                                        ReferModeMaster referModeInfo = this.referModeMasterRepo.findByReferModeId((int) receiverData.get(i).getReferModeId());
+                                        ReferModeMaster referModeInfo = this.referModeMasterRepo
+                                                .findByReferModeId((int) receiverData.get(i).getReferModeId());
                                         receiverData.get(i).setReferModeName(referModeInfo.getReferModeName());
                                     }
                                 }
@@ -593,7 +615,8 @@ public class DispatchServiceImpl implements DispatchService {
             Pageable pageableRequest = PageRequest.of(0, 10, Sort.by(new String[]{"utcDateTime"}).descending());
             Query query = new Query();
             query.with(pageableRequest);
-            List<EldLogDataViewDto> eldLogData = this.mongoTemplate.find(query, EldLogDataViewDto.class, "eld_log_data");
+            List<EldLogDataViewDto> eldLogData = this.mongoTemplate.find(query, EldLogDataViewDto.class,
+                    "eld_log_data");
             result.setResult(eldLogData);
             result.setStatus(Result.SUCCESS);
             result.setMessage("Eld Log Information Send Successfully");
@@ -606,10 +629,12 @@ public class DispatchServiceImpl implements DispatchService {
     }
 
     @Override
-    public ResultWrapper<DriveringStatusViewDto> AddDriveringStatus(DriveringStatus driveringStatus, String tokenValid) {
+    public ResultWrapper<DriveringStatusViewDto> AddDriveringStatus(DriveringStatus driveringStatus,
+            String tokenValid) {
         ResultWrapper<DriveringStatusViewDto> result = new ResultWrapper<>();
 
         try {
+            this.populateCdlSnapshot(driveringStatus);
             DriverStatusLog driverStatusLog = new DriverStatusLog();
             if (tokenValid.equals("true")) {
                 DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
@@ -665,7 +690,8 @@ public class DispatchServiceImpl implements DispatchService {
                     Query queryLog = new Query(Criteria.where("driverId").is(driveringStatus.getDriverId()));
                     queryLog.limit(1);
                     queryLog.with(pageableRequest);
-                    List<DriveringStatusViewDto> dsDataLog = this.mongoTemplate.find(queryLog, DriveringStatusViewDto.class, "drivering_status");
+                    List<DriveringStatusViewDto> dsDataLog = this.mongoTemplate.find(queryLog,
+                            DriveringStatusViewDto.class, "drivering_status");
                     driverStatusLog.setLogDataId(dsDataLog.get(0).get_id());
                     driverStatusLog.setDriverId(driveringStatus.getDriverId());
                     driverStatusLog.setVehicleId(driveringStatus.getVehicleId());
@@ -684,7 +710,12 @@ public class DispatchServiceImpl implements DispatchService {
                     driverStatusLog.setIsReportGenerated(0);
                     driverStatusLog.setReceivedTimestamp(instant.toEpochMilli());
                     driverStatusLog.setIsVisible(1);
-                    List<DriverStatusLog> logDataExist = this.driverStatusLogRepo.CheckDriverStatusLogById(dsDataLog.get(0).get_id());
+                    driverStatusLog.setCdlNo(driveringStatus.getCdlNo());
+                    driverStatusLog.setCdlStateId(driveringStatus.getCdlStateId());
+                    driverStatusLog.setCdlCountryId(driveringStatus.getCdlCountryId());
+                    driverStatusLog.setCdlStateCode(driveringStatus.getCdlStateCode());
+                    List<DriverStatusLog> logDataExist = this.driverStatusLogRepo
+                            .CheckDriverStatusLogById(dsDataLog.get(0).get_id());
                     if (logDataExist.size() <= 0) {
                         this.driverStatusLogRepo.save(driverStatusLog);
                         this.UpdateDriverSequenceId(driveringStatus.getDriverId(), driveringStatus.getUtcDateTime());
@@ -733,7 +764,8 @@ public class DispatchServiceImpl implements DispatchService {
                     Query queryLog = new Query(Criteria.where("driverId").is(driveringStatus.getDriverId()));
                     queryLog.limit(1);
                     queryLog.with(pageableRequest);
-                    List<DriveringStatusViewDto> dsDataLog = this.mongoTemplate.find(queryLog, DriveringStatusViewDto.class, "drivering_status");
+                    List<DriveringStatusViewDto> dsDataLog = this.mongoTemplate.find(queryLog,
+                            DriveringStatusViewDto.class, "drivering_status");
                     driverStatusLog.setLogDataId(dsDataLog.get(0).get_id());
                     driverStatusLog.setDriverId(driveringStatus.getDriverId());
                     driverStatusLog.setVehicleId(driveringStatus.getVehicleId());
@@ -752,7 +784,12 @@ public class DispatchServiceImpl implements DispatchService {
                     driverStatusLog.setIsReportGenerated(0);
                     driverStatusLog.setReceivedTimestamp(instant.toEpochMilli());
                     driverStatusLog.setIsVisible(1);
-                    List<DriverStatusLog> logDataExist = this.driverStatusLogRepo.CheckDriverStatusLogById(dsDataLog.get(0).get_id());
+                    driverStatusLog.setCdlNo(driveringStatus.getCdlNo());
+                    driverStatusLog.setCdlStateId(driveringStatus.getCdlStateId());
+                    driverStatusLog.setCdlCountryId(driveringStatus.getCdlCountryId());
+                    driverStatusLog.setCdlStateCode(driveringStatus.getCdlStateCode());
+                    List<DriverStatusLog> logDataExist = this.driverStatusLogRepo
+                            .CheckDriverStatusLogById(dsDataLog.get(0).get_id());
                     if (logDataExist.size() <= 0) {
                         this.driverStatusLogRepo.save(driverStatusLog);
                         this.UpdateDriverSequenceId(driveringStatus.getDriverId(), driveringStatus.getUtcDateTime());
@@ -760,23 +797,21 @@ public class DispatchServiceImpl implements DispatchService {
                 }
             }
 
-            DriveringStatusViewDto driverStatus = this.driveringStatusRepo
-                    .findAndViewDriverStatusById(driveringStatus.getDriverId(), driveringStatus.getUtcDateTime());
-            if (driveringStatus.getOsVersion().equals("web")) {
-                Query queryData = new Query(Criteria.where("dateTime").gte(driveringStatus.getUtcDateTime()).and("driverId").is(driveringStatus.getDriverId()));
-                queryData.with(Sort.by(Direction.ASC, new String[]{"statusId"}));
-                List<DriverStatusLog> dsLogList = this.mongoTemplate.find(queryData, DriverStatusLog.class, "driver_status_log");
-                Query query = new Query();
-                new Update();
+            // Invalidate certified log for this day, since a log was edited/added
+            this.invalidateCertifiedLogForDate(driveringStatus.getDriverId(), driveringStatus.getUtcDateTime());
 
-                for (int i = 0; i < dsLogList.size(); ++i) {
-                    long dsLogStatusId = driveringStatus.getStatusId() + (long) i;
-                    query.addCriteria(Criteria.where("logDataId").is(dsLogList.get(i).getLogDataId()));
-                    Update var29 = new Update();
-                    var29.set("statusId", dsLogStatusId);
-                    this.mongoTemplate.updateMulti(query, var29, DriverStatusLog.class);
-                }
+            DriveringStatusViewDto driverStatus = null;
+            List<DriveringStatusViewDto> dsListById = this.driveringStatusRepo
+                    .findListAndViewDriverStatusById(driveringStatus.getDriverId(), driveringStatus.getUtcDateTime());
+            if (dsListById != null && !dsListById.isEmpty()) {
+                driverStatus = dsListById.get(0);
             }
+            // IMPORTANT:
+            // Do not re-number sequence IDs here.
+            // The sequence is already corrected only when a log is actually
+            // inserted/changed
+            // via UpdateDriverSequenceId(...). A normal response/refresh must never mutate
+            // seqID.
 
             result.setResult(driverStatus);
             result.setToken(tokenValid);
@@ -813,6 +848,29 @@ public class DispatchServiceImpl implements DispatchService {
             Integer isActive = driveringStatus.getIsActive();
             Instant instant = Instant.now();
             new DriverStatusLog();
+
+            if (driveringStatus.getDateTime() == null || driveringStatus.getDateTime().startsWith("1970")
+                    || driveringStatus.getUtcDateTime() <= 0L) {
+                try {
+                    Pageable lastDisabledPage = PageRequest.of(0, 1, Sort.by(Sort.Direction.DESC, "_id"));
+                    Query lastDisabledQuery = new Query(
+                            Criteria.where("driverId").is(driveringStatus.getDriverId()).and("isVisible").is(0));
+                    lastDisabledQuery.with(lastDisabledPage);
+                    List<DriveringStatus> lastDisabledLogList = this.mongoTemplate.find(lastDisabledQuery,
+                            DriveringStatus.class, "drivering_status");
+
+                    if (lastDisabledLogList != null && !lastDisabledLogList.isEmpty()
+                            && lastDisabledLogList.get(0).getUtcDateTime() > 0L) {
+                        DriveringStatus lastDisabled = lastDisabledLogList.get(0);
+                        driveringStatus.setDateTime(lastDisabled.getDateTime());
+                        driveringStatus.setUtcDateTime(lastDisabled.getUtcDateTime());
+                        driveringStatus.setOrigin("Added");
+                    }
+                } catch (Exception e) {
+                    e.printStackTrace();
+                }
+            }
+
             DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
             LocalDateTime ldtDateTime = LocalDateTime.parse(driveringStatus.getDateTime(), formatter);
             long lDateTime = ldtDateTime.atZone(ZoneId.systemDefault()).toInstant().toEpochMilli();
@@ -841,19 +899,16 @@ public class DispatchServiceImpl implements DispatchService {
                 loginLog.setLoginType(driveringStatus.getOsVersion() == null ? "web" : driveringStatus.getOsVersion());
                 this.mongoTemplate.save(loginLog, "login_log");
                 DriverStatusLog var61 = new DriverStatusLog();
-                long maxId = this.lookupMaxIdOfDriverOperation(driveringStatus.getDriverId());
-                if (maxId <= 0L) {
-                    maxId = 1L;
-                    var61.setStatusId(maxId);
-                } else {
-                    var61.setStatusId(++maxId);
-                }
+                // Temporary value only. Final sequence ID is assigned chronologically
+                // by UpdateDriverSequenceId(...) after this log is saved.
+                var61.setStatusId(0L);
 
                 Pageable pageableRequest = PageRequest.of(0, 1, Sort.by(new String[]{"_id"}).descending());
                 Query query = new Query(Criteria.where("employeeId").is(driveringStatus.getDriverId()));
                 query.limit(1);
                 query.with(pageableRequest);
-                List<LoginLogViewDto> loginLogViewDto = this.mongoTemplate.find(query, LoginLogViewDto.class, "login_log");
+                List<LoginLogViewDto> loginLogViewDto = this.mongoTemplate.find(query, LoginLogViewDto.class,
+                        "login_log");
                 var61.setLogDataId(loginLogViewDto.get(0).get_id());
                 var61.setDriverId(driveringStatus.getDriverId());
                 var61.setVehicleId(driveringStatus.getVehicleId());
@@ -866,16 +921,18 @@ public class DispatchServiceImpl implements DispatchService {
                 var61.setEngineHour(driveringStatus.getEngineHour());
                 var61.setOrigin(driveringStatus.getOrigin());
                 var61.setOdometer(driveringStatus.getOdometer());
-                var61.setIsVoilation(driveringStatus.getIsVoilation());
+                var61.setIsVoilation(0);
                 var61.setNote(driveringStatus.getNote());
                 var61.setCustomLocation(driveringStatus.getCustomLocation());
                 var61.setIsReportGenerated(1);
                 var61.setReceivedTimestamp(instant.toEpochMilli());
                 var61.setIsVisible(1);
-                List<DriverStatusLog> logDataExist = this.driverStatusLogRepo.CheckDriverStatusLogById(loginLogViewDto.get(0).get_id());
+                List<DriverStatusLog> logDataExist = this.driverStatusLogRepo
+                        .CheckDriverStatusLogById(loginLogViewDto.get(0).get_id());
                 if (logDataExist.size() <= 0) {
                     this.driverStatusLogRepo.save(var61);
-                    this.UpdateDriverSequenceId(driveringStatus.getDriverId(), loginLogViewDto.get(0).getLoginDateTime());
+                    this.UpdateDriverSequenceId(driveringStatus.getDriverId(),
+                            loginLogViewDto.get(0).getLoginDateTime());
                 }
             } else if (currentStatus.equalsIgnoreCase("Logout")) {
                 if (driveringStatus.getUtcDateTime() <= 0L) {
@@ -892,19 +949,16 @@ public class DispatchServiceImpl implements DispatchService {
                 loginLog.setLoginType(driveringStatus.getOsVersion() == null ? "web" : driveringStatus.getOsVersion());
                 this.mongoTemplate.save(loginLog, "login_log");
                 DriverStatusLog var60 = new DriverStatusLog();
-                long maxId = this.lookupMaxIdOfDriverOperation(driveringStatus.getDriverId());
-                if (maxId <= 0L) {
-                    maxId = 1L;
-                    var60.setStatusId(maxId);
-                } else {
-                    var60.setStatusId(++maxId);
-                }
+                // Temporary value only. Final sequence ID is assigned chronologically
+                // by UpdateDriverSequenceId(...) after this log is saved.
+                var60.setStatusId(0L);
 
                 Pageable pageableRequest = PageRequest.of(0, 1, Sort.by(new String[]{"_id"}).descending());
                 Query query = new Query(Criteria.where("employeeId").is(driveringStatus.getDriverId()));
                 query.limit(1);
                 query.with(pageableRequest);
-                List<LoginLogViewDto> loginLogViewDto = this.mongoTemplate.find(query, LoginLogViewDto.class, "login_log");
+                List<LoginLogViewDto> loginLogViewDto = this.mongoTemplate.find(query, LoginLogViewDto.class,
+                        "login_log");
                 var60.setLogDataId(loginLogViewDto.get(0).get_id());
                 var60.setDriverId(driveringStatus.getDriverId());
                 var60.setVehicleId(driveringStatus.getVehicleId());
@@ -917,16 +971,18 @@ public class DispatchServiceImpl implements DispatchService {
                 var60.setEngineHour(driveringStatus.getEngineHour());
                 var60.setOrigin(driveringStatus.getOrigin());
                 var60.setOdometer(driveringStatus.getOdometer());
-                var60.setIsVoilation(driveringStatus.getIsVoilation());
+                var60.setIsVoilation(0);
                 var60.setNote(driveringStatus.getNote());
                 var60.setCustomLocation(driveringStatus.getCustomLocation());
                 var60.setIsReportGenerated(1);
                 var60.setReceivedTimestamp(instant.toEpochMilli());
                 var60.setIsVisible(1);
-                List<DriverStatusLog> logDataExist = this.driverStatusLogRepo.CheckDriverStatusLogById(loginLogViewDto.get(0).get_id());
+                List<DriverStatusLog> logDataExist = this.driverStatusLogRepo
+                        .CheckDriverStatusLogById(loginLogViewDto.get(0).get_id());
                 if (logDataExist.size() <= 0) {
                     this.driverStatusLogRepo.save(var60);
-                    this.UpdateDriverSequenceId(driveringStatus.getDriverId(), loginLogViewDto.get(0).getLogoutDateTime());
+                    this.UpdateDriverSequenceId(driveringStatus.getDriverId(),
+                            loginLogViewDto.get(0).getLogoutDateTime());
                 }
             } else {
                 if (driveringStatus.getUtcDateTime() <= 0L) {
@@ -934,10 +990,12 @@ public class DispatchServiceImpl implements DispatchService {
                 }
 
                 Pageable pageableRequest = PageRequest.of(0, 1, Sort.by(new String[]{"_id"}).descending());
-                Query queryData = new Query(Criteria.where("driverId").is(driveringStatus.getDriverId()).and("utcDateTime").lt(driveringStatus.getUtcDateTime()));
+                Query queryData = new Query(Criteria.where("driverId").is(driveringStatus.getDriverId())
+                        .and("utcDateTime").lt(driveringStatus.getUtcDateTime()));
                 queryData.limit(1);
                 queryData.with(pageableRequest);
-                List<DriveringStatusLogViewDto> driveringStatusLastLog = this.mongoTemplate.find(queryData, DriveringStatusLogViewDto.class, "drivering_status");
+                List<DriveringStatusLogViewDto> driveringStatusLastLog = this.mongoTemplate.find(queryData,
+                        DriveringStatusLogViewDto.class, "drivering_status");
                 if (driveringStatusLastLog.size() > 0) {
                     remainingWeeklyTime = Long.parseLong(driveringStatusLastLog.get(0).getRemainingWeeklyTime());
                     remainingDutyTime = Long.parseLong(driveringStatusLastLog.get(0).getRemainingDutyTime());
@@ -948,7 +1006,8 @@ public class DispatchServiceImpl implements DispatchService {
                     lastLogUtcDateTime = driveringStatusLastLog.get(0).getUtcDateTime();
                     previousStatus = driveringStatusLastLog.get(0).getStatus();
                 } else {
-                    EmployeeMaster empDetails = this.employeeMasterRepo.findByEmployeeId((int) driveringStatus.getDriverId());
+                    EmployeeMaster empDetails = this.employeeMasterRepo
+                            .findByEmployeeId((int) driveringStatus.getDriverId());
                     CycleUsa cycleUsaData = this.cycleUsaRepo.findByCycleUsaId((int) empDetails.getCycleUsaId());
                     remainingWeeklyTime = cycleUsaData.getCycleHour() * 60L * 60L;
                     remainingDutyTime = cycleUsaData.getOnDutyTime() * 60L * 60L;
@@ -1005,9 +1064,16 @@ public class DispatchServiceImpl implements DispatchService {
                         update.set("workingStatus", driveringStatus.getStatus());
                         update.set("updatedTimestamp", instant.toEpochMilli());
                         this.mongoTemplate.findAndModify(query, update, EmployeeMaster.class);
-                        DriveringStatusViewDto driverStatus = this.driveringStatusRepo
-                                .findAndViewDriverStatusById(driveringStatus.getDriverId(), driveringStatus.getUtcDateTime());
-                        driverStatusLog.setLogDataId(driverStatus.get_id());
+                        DriveringStatusViewDto driverStatus = null;
+                        List<DriveringStatusViewDto> dsListById = this.driveringStatusRepo
+                                .findListAndViewDriverStatusById(driveringStatus.getDriverId(),
+                                        driveringStatus.getUtcDateTime());
+                        if (dsListById != null && !dsListById.isEmpty()) {
+                            driverStatus = dsListById.get(0);
+                        }
+                        if (driverStatus != null) {
+                            driverStatusLog.setLogDataId(driverStatus.get_id());
+                        }
                         driverStatusLog.setDriverId(driveringStatus.getDriverId());
                         driverStatusLog.setVehicleId(driveringStatus.getVehicleId());
                         driverStatusLog.setClientId(driveringStatus.getClientId());
@@ -1025,10 +1091,12 @@ public class DispatchServiceImpl implements DispatchService {
                         driverStatusLog.setIsReportGenerated(0);
                         driverStatusLog.setReceivedTimestamp(instant.toEpochMilli());
                         driverStatusLog.setIsVisible(1);
-                        List<DriverStatusLog> logDataExist = this.driverStatusLogRepo.CheckDriverStatusLogById(driverStatus.get_id());
+                        List<DriverStatusLog> logDataExist = this.driverStatusLogRepo
+                                .CheckDriverStatusLogById(driverStatus.get_id());
                         if (logDataExist.size() <= 0) {
                             this.driverStatusLogRepo.save(driverStatusLog);
-                            this.UpdateDriverSequenceId(driveringStatus.getDriverId(), driveringStatus.getUtcDateTime());
+                            this.UpdateDriverSequenceId(driveringStatus.getDriverId(),
+                                    driveringStatus.getUtcDateTime());
                         }
                     } else {
                         isDataSave = false;
@@ -1045,13 +1113,15 @@ public class DispatchServiceImpl implements DispatchService {
                         lastLogUtcDateTime,
                         driveringStatus.getStatus(),
                         shift,
-                        days
-                );
+                        days);
             }
 
-            long removeCount = this.driveringStatusRepo.deleteAllDriveringStatusVoilation(driveringStatus.getDriverId(), midnightTimestamp, endOfDayTimestamp, 1);
-            this.CheckAllVoilations(driveringStatus.getDriverId(), midnightTimestamp, endOfDayTimestamp, to, shift, days);
+            long removeCount = this.driveringStatusRepo.deleteAllDriveringStatusVoilation(driveringStatus.getDriverId(),
+                    midnightTimestamp, endOfDayTimestamp, 1);
+            this.CheckAllVoilations(driveringStatus.getDriverId(), midnightTimestamp, endOfDayTimestamp, to, shift,
+                    days);
             this.UpdateDriverSequenceId(driveringStatus.getDriverId(), lDateTime);
+            this.invalidateCertifiedLogForDate(driveringStatus.getDriverId(), lDateTime);
             this.SaveLog(sDebug);
             if (isDataSave) {
                 result.setResult("Saved");
@@ -1073,10 +1143,18 @@ public class DispatchServiceImpl implements DispatchService {
     public long lookupMaxIdOfDriverOperation(long driverId) {
         Aggregation aggregation = Aggregation.newAggregation(
                 new AggregationOperation[]{
-                    Aggregation.match(Criteria.where("driverId").is(driverId)), Aggregation.group(new String[0]).max("statusId").as("statusId")
-                }
-        );
-        AggregationResults<MaxIdViewDto> result = this.mongoTemplate.aggregate(aggregation, "driver_status_log", MaxIdViewDto.class);
+                    Aggregation.match(
+                            Criteria.where("driverId").is(driverId)
+                                    .and("isVisible").is(1)
+                                    .and("isVoilation").is(0)),
+                    Aggregation.group(new String[0]).max("statusId").as("statusId")
+                });
+
+        AggregationResults<MaxIdViewDto> result = this.mongoTemplate.aggregate(
+                aggregation,
+                "driver_status_log",
+                MaxIdViewDto.class);
+
         List<MaxIdViewDto> results = result.getMappedResults();
         return results.isEmpty() ? -1L : results.get(0).getStatusId();
     }
@@ -1098,7 +1176,8 @@ public class DispatchServiceImpl implements DispatchService {
     }
 
     @Override
-    public ResultWrapper<List<AddDriveringStatusResponseDto>> AddDriveringStatusOffline(AddDriveringStatusDto addDriveringStatusDto, String tokenValid) {
+    public ResultWrapper<List<AddDriveringStatusResponseDto>> AddDriveringStatusOffline(
+            AddDriveringStatusDto addDriveringStatusDto, String tokenValid) {
         ResultWrapper<List<AddDriveringStatusResponseDto>> result = new ResultWrapper<>();
         String sDebug = "";
 
@@ -1112,7 +1191,8 @@ public class DispatchServiceImpl implements DispatchService {
             ArrayList<ELDLogData> eldLogStatusData = addDriveringStatusDto.getEldLogData();
             SplitLog splitLog = addDriveringStatusDto.getSplitLog();
             sDebug = sDebug + " >> " + eldLogStatusData + ",";
-            String currentDateTime = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss").format(new Date(instant.toEpochMilli()));
+            String currentDateTime = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss")
+                    .format(new Date(instant.toEpochMilli()));
             ELDLogData eldLogData = null;
             double dLattitude = 0.0;
             double dLongitude = 0.0;
@@ -1164,7 +1244,8 @@ public class DispatchServiceImpl implements DispatchService {
                 try {
                     GeofanceMaster lstGeofacne = this.geofanceMasterRepo.findByAreaIntersects(point);
                     eldLogData.setGeoStateId(lstGeofacne.getStateId());
-                    List<StateMaster> states = this.stateMasterRepo.findAndViewByGeofanceId((long) lstGeofacne.getGeoId().intValue());
+                    List<StateMaster> states = this.stateMasterRepo
+                            .findAndViewByGeofanceId((long) lstGeofacne.getGeoId().intValue());
                     eldLogData.setStateId((long) states.get(0).getStateId().intValue());
                 } catch (Exception var41) {
                     var41.printStackTrace();
@@ -1178,7 +1259,8 @@ public class DispatchServiceImpl implements DispatchService {
                 eldLogData.setPlaceAddress(sAddress);
                 sDebug = sDebug + "6,";
                 this.eldLogDataRepo.save(eldLogData);
-                List<LiveDataLog> liveDataLogData = this.liveDataLogRepo.findAndViewLiveDataLog(eldLogData.getDriverId(), eldLogData.getMAC());
+                List<LiveDataLog> liveDataLogData = this.liveDataLogRepo
+                        .findAndViewLiveDataLog(eldLogData.getDriverId(), eldLogData.getMAC());
                 if (liveDataLogData.size() <= 0) {
                     LiveDataLog liveDataLog = new LiveDataLog();
                     liveDataLog.setMAC(eldLogData.getMAC());
@@ -1199,7 +1281,8 @@ public class DispatchServiceImpl implements DispatchService {
                     this.liveDataLogRepo.save(liveDataLog);
                 } else {
                     Query query = new Query();
-                    query.addCriteria(Criteria.where("MAC").is(eldLogData.getMAC()).and("DriverId").is(eldLogData.getDriverId()));
+                    query.addCriteria(
+                            Criteria.where("MAC").is(eldLogData.getMAC()).and("DriverId").is(eldLogData.getDriverId()));
                     Update update = new Update();
                     update.set("DateTime", eldLogData.getUtcDateTime());
                     update.set("Lattitude", dLattitude);
@@ -1221,7 +1304,8 @@ public class DispatchServiceImpl implements DispatchService {
                         long durationInMillis = eldLogData.getUtcDateTime() - data.getUtcDateTime();
                         if (durationInMillis > 60000L) {
                             List<AlertsLog> alertLogData = this.alertsLogRepo
-                                    .findAndViewByDriverIdAndUtcDateTime(Long.parseLong(eldLogData.getDriverId()), data.getUtcDateTime());
+                                    .findAndViewByDriverIdAndUtcDateTime(Long.parseLong(eldLogData.getDriverId()),
+                                            data.getUtcDateTime());
                             if (alertLogData.size() <= 0) {
                                 AlertsLog alertsLog = new AlertsLog();
                                 alertsLog.setDriverId(Long.parseLong(eldLogData.getDriverId()));
@@ -1246,8 +1330,8 @@ public class DispatchServiceImpl implements DispatchService {
                             } else {
                                 query = new Query();
                                 query.addCriteria(
-                                        Criteria.where("driverId").is(Long.parseLong(eldLogData.getDriverId())).and("startUtcDateTime").is(data.getUtcDateTime())
-                                );
+                                        Criteria.where("driverId").is(Long.parseLong(eldLogData.getDriverId()))
+                                                .and("startUtcDateTime").is(data.getUtcDateTime()));
                                 update = new Update();
                                 update.set("endUtcDateTime", eldLogData.getUtcDateTime());
                                 update.set("durationInMillis", durationInMillis);
@@ -1264,6 +1348,8 @@ public class DispatchServiceImpl implements DispatchService {
 
             for (int i = 0; i < driveringStatusData.size(); ++i) {
                 driveringStatus = driveringStatusData.get(i);
+                String requestLocalId = driveringStatus.getLocalId();
+                this.populateCdlSnapshot(driveringStatus);
                 String logType = driveringStatus.getLogType();
                 String sVoilationHour = logType.replaceAll("\\D+", "");
                 int voilationHour = sVoilationHour.isEmpty() ? 0 : Integer.parseInt(sVoilationHour);
@@ -1291,50 +1377,79 @@ public class DispatchServiceImpl implements DispatchService {
                     }
 
                     sAddress = "";
-                    if (driveringStatus.getCustomLocation().equals("") && driveringStatus.getCurrentLocation().equals("")) {
-                        sAddress = this.GetGoogleAddress(driveringStatus.getLattitude(), driveringStatus.getLongitude());
+                    if (driveringStatus.getCustomLocation().equals("")
+                            && driveringStatus.getCurrentLocation().equals("")) {
+                        sAddress = this.GetGoogleAddress(driveringStatus.getLattitude(),
+                                driveringStatus.getLongitude());
                         driveringStatus.setCustomLocation(sAddress);
                         driveringStatus.setCurrentLocation(sAddress);
                     }
 
-                    List<DriveringStatusViewDto> dsData = this.driveringStatusRepo
-                            .findAndViewDriverStatusByDate(driveringStatus.getDriverId(), driveringStatus.getDateTime());
-                    if (dsData.size() <= 0) {
-                        driveringStatus.setIsVisible(1);
-                        driveringStatus = (DriveringStatus) this.driveringStatusRepo.save(driveringStatus);
-                        Query query = new Query();
-                        query.addCriteria(Criteria.where("employeeId").is(driveringStatus.getDriverId()));
-                        Update update = new Update();
-                        update.set("workingStatus", driveringStatus.getStatus());
-                        update.set("updatedTimestamp", driveringStatus.getUtcDateTime());
-                        this.mongoTemplate.findAndModify(query, update, EmployeeMaster.class);
-                        Pageable pageableRequest = PageRequest.of(0, 1, Sort.by(new String[]{"_id"}).descending());
-                        Query queryLog = new Query(Criteria.where("driverId").is(driveringStatus.getDriverId()));
-                        queryLog.limit(1);
-                        queryLog.with(pageableRequest);
-                        List<DriveringStatusViewDto> dsDataLog = this.mongoTemplate.find(queryLog, DriveringStatusViewDto.class, "drivering_status");
-                        driverStatusLog.setLogDataId(dsDataLog.get(0).get_id());
-                        driverStatusLog.setDriverId(driveringStatus.getDriverId());
-                        driverStatusLog.setVehicleId(driveringStatus.getVehicleId());
-                        driverStatusLog.setClientId(driveringStatus.getClientId());
-                        driverStatusLog.setStatus(driveringStatus.getStatus());
-                        driverStatusLog.setLattitude(driveringStatus.getLattitude());
-                        driverStatusLog.setLongitude(driveringStatus.getLongitude());
-                        driverStatusLog.setDateTime(driveringStatus.getUtcDateTime());
-                        driverStatusLog.setLogType(driveringStatus.getLogType());
-                        driverStatusLog.setEngineHour(driveringStatus.getEngineHour());
-                        driverStatusLog.setOrigin(driveringStatus.getOrigin());
-                        driverStatusLog.setOdometer(driveringStatus.getOdometer());
-                        driverStatusLog.setIsVoilation(driveringStatus.getIsVoilation());
-                        driverStatusLog.setNote(driveringStatus.getNote());
-                        driverStatusLog.setCustomLocation(driveringStatus.getCustomLocation());
-                        driverStatusLog.setIsReportGenerated(0);
-                        driverStatusLog.setReceivedTimestamp(instant.toEpochMilli());
-                        driverStatusLog.setIsVisible(1);
-                        List<DriverStatusLog> logDataExist = this.driverStatusLogRepo.CheckDriverStatusLogById(dsDataLog.get(0).get_id());
-                        if (logDataExist.size() <= 0) {
-                            this.driverStatusLogRepo.save(driverStatusLog);
-                            this.UpdateDriverSequenceId(driveringStatus.getDriverId(), driveringStatus.getUtcDateTime());
+                    Query checkDuplicateQuery = new Query(Criteria.where("driverId").is(driveringStatus.getDriverId())
+                            .and("dateTime").is(driveringStatus.getDateTime())
+                            .and("isActive").is(driveringStatus.getIsActive())
+                            .and("status").is(driveringStatus.getStatus())
+                            .and("isVisible").is(1));
+                    boolean existsExact = this.mongoTemplate.exists(checkDuplicateQuery, DriveringStatus.class);
+
+                    if (!existsExact) {
+                        List<DriveringStatusViewDto> dsData = this.driveringStatusRepo
+                                .findAndViewDriverStatusByDate(driveringStatus.getDriverId(),
+                                        driveringStatus.getDateTime());
+                        if (dsData.size() <= 0) {
+                            driveringStatus.setIsVisible(1);
+                            driveringStatus = (DriveringStatus) this.driveringStatusRepo.save(driveringStatus);
+                            Query query = new Query();
+                            query.addCriteria(Criteria.where("employeeId").is(driveringStatus.getDriverId()));
+                            Update update = new Update();
+                            update.set("workingStatus", driveringStatus.getStatus());
+                            update.set("updatedTimestamp", driveringStatus.getUtcDateTime());
+                            this.mongoTemplate.findAndModify(query, update, EmployeeMaster.class);
+                            Pageable pageableRequest = PageRequest.of(0, 1,
+                                    Sort.by(new String[]{"_id"}).descending());
+                            Query queryLog = new Query(Criteria.where("driverId").is(driveringStatus.getDriverId()));
+                            queryLog.limit(1);
+                            queryLog.with(pageableRequest);
+                            List<DriveringStatusViewDto> dsDataLog = this.mongoTemplate.find(queryLog,
+                                    DriveringStatusViewDto.class, "drivering_status");
+                            driverStatusLog.setLogDataId(dsDataLog.get(0).get_id());
+                            driverStatusLog.setDriverId(driveringStatus.getDriverId());
+                            driverStatusLog.setVehicleId(driveringStatus.getVehicleId());
+                            driverStatusLog.setClientId(driveringStatus.getClientId());
+                            driverStatusLog.setStatus(driveringStatus.getStatus());
+                            driverStatusLog.setLattitude(driveringStatus.getLattitude());
+                            driverStatusLog.setLongitude(driveringStatus.getLongitude());
+                            driverStatusLog.setDateTime(driveringStatus.getUtcDateTime());
+                            driverStatusLog.setLogType(driveringStatus.getLogType());
+                            driverStatusLog.setEngineHour(driveringStatus.getEngineHour());
+                            driverStatusLog.setOrigin(driveringStatus.getOrigin());
+                            driverStatusLog.setOdometer(driveringStatus.getOdometer());
+                            driverStatusLog.setIsVoilation(driveringStatus.getIsVoilation());
+                            driverStatusLog.setNote(driveringStatus.getNote());
+                            driverStatusLog.setCustomLocation(driveringStatus.getCustomLocation());
+                            driverStatusLog.setIsReportGenerated(0);
+                            driverStatusLog.setReceivedTimestamp(instant.toEpochMilli());
+                            driverStatusLog.setIsVisible(1);
+                            List<DriverStatusLog> logDataExist = this.driverStatusLogRepo
+                                    .CheckDriverStatusLogById(dsDataLog.get(0).get_id());
+                            if (logDataExist.size() <= 0) {
+                                this.driverStatusLogRepo.save(driverStatusLog);
+                                this.UpdateDriverSequenceId(driveringStatus.getDriverId(),
+                                        driveringStatus.getUtcDateTime());
+                                this.invalidateCertifiedLogForDate(driveringStatus.getDriverId(),
+                                        driveringStatus.getUtcDateTime());
+                            }
+                        } else {
+                            if (driveringStatus.getIsActive() != null && driveringStatus.getIsActive() == 1) {
+                                Query updateQuery = new Query(
+                                        Criteria.where("driverId").is(driveringStatus.getDriverId())
+                                                .and("dateTime").is(driveringStatus.getDateTime())
+                                                .and("isActive").in(0, 2));
+                                Update update = new Update();
+                                update.set("isActive", 1);
+                                update.set("updatedTimestamp", instant.toEpochMilli());
+                                this.mongoTemplate.findAndModify(updateQuery, update, DriveringStatus.class);
+                            }
                         }
                     }
                 } else {
@@ -1359,54 +1474,92 @@ public class DispatchServiceImpl implements DispatchService {
                         driveringStatus.setAppVersion("1.0");
                     }
 
-                    List<DriveringStatusViewDto> dsData = this.driveringStatusRepo
-                            .findAndViewDriverStatusByDate(driveringStatus.getDriverId(), driveringStatus.getDateTime());
-                    if (dsData.size() <= 0) {
-                        driveringStatus.setIsVisible(1);
-                        driveringStatus = (DriveringStatus) this.driveringStatusRepo.save(driveringStatus);
-                        Query query = new Query();
-                        query.addCriteria(Criteria.where("employeeId").is(driveringStatus.getDriverId()));
-                        Update update = new Update();
-                        update.set("workingStatus", driveringStatus.getStatus());
-                        update.set("updatedTimestamp", instant.toEpochMilli());
-                        this.mongoTemplate.findAndModify(query, update, EmployeeMaster.class);
-                        Pageable pageableRequest = PageRequest.of(0, 1, Sort.by(new String[]{"_id"}).descending());
-                        Query queryLog = new Query(Criteria.where("driverId").is(driveringStatus.getDriverId()));
-                        queryLog.limit(1);
-                        queryLog.with(pageableRequest);
-                        List<DriveringStatusViewDto> dsDataLog = this.mongoTemplate.find(queryLog, DriveringStatusViewDto.class, "drivering_status");
-                        driverStatusLog.setLogDataId(dsDataLog.get(0).get_id());
-                        driverStatusLog.setDriverId(driveringStatus.getDriverId());
-                        driverStatusLog.setVehicleId(driveringStatus.getVehicleId());
-                        driverStatusLog.setClientId(driveringStatus.getClientId());
-                        driverStatusLog.setStatus(driveringStatus.getStatus());
-                        driverStatusLog.setLattitude(driveringStatus.getLattitude());
-                        driverStatusLog.setLongitude(driveringStatus.getLongitude());
-                        driverStatusLog.setDateTime(driveringStatus.getUtcDateTime());
-                        driverStatusLog.setLogType(driveringStatus.getLogType());
-                        driverStatusLog.setEngineHour(driveringStatus.getEngineHour());
-                        driverStatusLog.setOrigin(driveringStatus.getOrigin());
-                        driverStatusLog.setOdometer(driveringStatus.getOdometer());
-                        driverStatusLog.setIsVoilation(driveringStatus.getIsVoilation());
-                        driverStatusLog.setNote(driveringStatus.getNote());
-                        driverStatusLog.setCustomLocation(driveringStatus.getCustomLocation());
-                        driverStatusLog.setIsReportGenerated(0);
-                        driverStatusLog.setReceivedTimestamp(instant.toEpochMilli());
-                        driverStatusLog.setIsVisible(1);
-                        List<DriverStatusLog> logDataExist = this.driverStatusLogRepo.CheckDriverStatusLogById(dsDataLog.get(0).get_id());
-                        if (logDataExist.size() <= 0) {
-                            this.driverStatusLogRepo.save(driverStatusLog);
-                            this.UpdateDriverSequenceId(driveringStatus.getDriverId(), driveringStatus.getUtcDateTime());
+                    Query checkDuplicateQuery = new Query(Criteria.where("driverId").is(driveringStatus.getDriverId())
+                            .and("dateTime").is(driveringStatus.getDateTime())
+                            .and("isActive").is(driveringStatus.getIsActive())
+                            .and("status").is(driveringStatus.getStatus())
+                            .and("isVisible").is(1));
+                    boolean existsExact = this.mongoTemplate.exists(checkDuplicateQuery, DriveringStatus.class);
+
+                    if (!existsExact) {
+                        List<DriveringStatusViewDto> dsData = this.driveringStatusRepo
+                                .findAndViewDriverStatusByDate(driveringStatus.getDriverId(),
+                                        driveringStatus.getDateTime());
+                        if (dsData.size() <= 0) {
+                            driveringStatus.setIsVisible(1);
+                            driveringStatus = (DriveringStatus) this.driveringStatusRepo.save(driveringStatus);
+                            Query query = new Query();
+                            query.addCriteria(Criteria.where("employeeId").is(driveringStatus.getDriverId()));
+                            Update update = new Update();
+                            update.set("workingStatus", driveringStatus.getStatus());
+                            update.set("updatedTimestamp", instant.toEpochMilli());
+                            this.mongoTemplate.findAndModify(query, update, EmployeeMaster.class);
+                            Pageable pageableRequest = PageRequest.of(0, 1,
+                                    Sort.by(new String[]{"_id"}).descending());
+                            Query queryLog = new Query(Criteria.where("driverId").is(driveringStatus.getDriverId()));
+                            queryLog.limit(1);
+                            queryLog.with(pageableRequest);
+                            List<DriveringStatusViewDto> dsDataLog = this.mongoTemplate.find(queryLog,
+                                    DriveringStatusViewDto.class, "drivering_status");
+                            driverStatusLog.setLogDataId(dsDataLog.get(0).get_id());
+                            driverStatusLog.setDriverId(driveringStatus.getDriverId());
+                            driverStatusLog.setVehicleId(driveringStatus.getVehicleId());
+                            driverStatusLog.setClientId(driveringStatus.getClientId());
+                            driverStatusLog.setStatus(driveringStatus.getStatus());
+                            driverStatusLog.setLattitude(driveringStatus.getLattitude());
+                            driverStatusLog.setLongitude(driveringStatus.getLongitude());
+                            driverStatusLog.setDateTime(driveringStatus.getUtcDateTime());
+                            driverStatusLog.setLogType(driveringStatus.getLogType());
+                            driverStatusLog.setEngineHour(driveringStatus.getEngineHour());
+                            driverStatusLog.setOrigin(driveringStatus.getOrigin());
+                            driverStatusLog.setOdometer(driveringStatus.getOdometer());
+                            driverStatusLog.setIsVoilation(driveringStatus.getIsVoilation());
+                            driverStatusLog.setNote(driveringStatus.getNote());
+                            driverStatusLog.setCustomLocation(driveringStatus.getCustomLocation());
+                            driverStatusLog.setIsReportGenerated(0);
+                            driverStatusLog.setReceivedTimestamp(instant.toEpochMilli());
+                            driverStatusLog.setIsVisible(1);
+                            List<DriverStatusLog> logDataExist = this.driverStatusLogRepo
+                                    .CheckDriverStatusLogById(dsDataLog.get(0).get_id());
+                            if (logDataExist.size() <= 0) {
+                                this.driverStatusLogRepo.save(driverStatusLog);
+                                this.UpdateDriverSequenceId(driveringStatus.getDriverId(),
+                                        driveringStatus.getUtcDateTime());
+                                this.invalidateCertifiedLogForDate(driveringStatus.getDriverId(),
+                                        driveringStatus.getUtcDateTime());
+                            }
+                        } else {
+                            if (driveringStatus.getIsActive() != null && driveringStatus.getIsActive() == 1) {
+                                Query updateQuery = new Query(
+                                        Criteria.where("driverId").is(driveringStatus.getDriverId())
+                                                .and("dateTime").is(driveringStatus.getDateTime())
+                                                .and("isActive").in(0, 2));
+                                Update update = new Update();
+                                update.set("isActive", 1);
+                                update.set("updatedTimestamp", instant.toEpochMilli());
+                                this.mongoTemplate.findAndModify(updateQuery, update, DriveringStatus.class);
+                            }
                         }
                     }
                 }
 
-                DriveringStatusViewDto driverStatus = this.driveringStatusRepo
-                        .findAndViewDriverStatusById(driveringStatus.getDriverId(), driveringStatus.getUtcDateTime());
-                String objId = driverStatus.get_id();
+                String objId = null;
+                List<DriveringStatusViewDto> dsListById = this.driveringStatusRepo
+                        .findListAndViewDriverStatusById(driveringStatus.getDriverId(),
+                                driveringStatus.getUtcDateTime());
+                if (dsListById != null && !dsListById.isEmpty()) {
+                    objId = dsListById.get(0).get_id();
+                } else {
+                    List<DriveringStatusViewDto> dsList = this.driveringStatusRepo
+                            .findAndViewDriverStatusByDate(driveringStatus.getDriverId(),
+                                    driveringStatus.getDateTime());
+                    if (dsList != null && dsList.size() > 0) {
+                        objId = dsList.get(0).get_id();
+                    }
+                }
                 AddDriveringStatusResponseDto addDriveringStatus = new AddDriveringStatusResponseDto();
-                addDriveringStatus.setLocalId(driveringStatus.getLocalId());
-                addDriveringStatus.setServerId(objId);
+                addDriveringStatus.setLocalId(requestLocalId);
+                addDriveringStatus.setServerId(objId != null ? objId : "");
                 AddDriveringStatusData.add(addDriveringStatus);
             }
 
@@ -1427,7 +1580,8 @@ public class DispatchServiceImpl implements DispatchService {
 
         try {
             this.SaveLog(lat + " :: " + lng);
-            String sUrl = "https://maps.googleapis.com/maps/api/geocode/json?latlng=" + lat + "," + lng + "&key=AIzaSyBR2Xiu4PJOVrPD125X0X7qUnC0H72NTus";
+            String sUrl = "https://maps.googleapis.com/maps/api/geocode/json?latlng=" + lat + "," + lng
+                    + "&key=AIzaSyBR2Xiu4PJOVrPD125X0X7qUnC0H72NTus";
             URL url = new URL(sUrl);
             URLConnection conn = url.openConnection();
             conn.addRequestProperty("User-Agent", "Mozilla/4.76");
@@ -1459,7 +1613,8 @@ public class DispatchServiceImpl implements DispatchService {
         return sAddress;
     }
 
-    public List<Map<String, Object>> callReportCreateMethods(long driverId, long from, long to, String logType, String driverName) {
+    public List<Map<String, Object>> callReportCreateMethods(long driverId, long from, long to, String logType,
+            String driverName) {
         List<Map<String, Object>> finalList = new ArrayList<>();
         if (logType.equals("driver_log")) {
             System.out.println(">> Processing Driver Log PDF");
@@ -1526,75 +1681,318 @@ public class DispatchServiceImpl implements DispatchService {
         }
     }
 
+    private String formatDuration(long millis) {
+        long minutes = millis / 60000;
+        long hours = minutes / 60;
+        minutes = minutes % 60;
+        return String.format("%d:%02d", hours, minutes);
+    }
+
     private Image generate24HourGraphImage(List<DriveringStatusViewDto> logs, long fromMillis, long toMillis) {
         try {
             XYSeries series = new XYSeries("Status");
             if (logs != null && logs.size() > 0) {
+                // Skipped 0.0 padding line to match admin panel graph (no trailing line at
+                // start of day)
+
                 for (DriveringStatusViewDto dto : logs) {
                     long lTime = dto.getLDateTime();
                     if (lTime <= 0) {
                         lTime = dto.getUtcDateTime();
                     }
+
+                    // Skip completely invalid timestamps (epoch=0, null)
+                    if (lTime <= 0) {
+                        continue;
+                    }
+
+                    String st = (dto.getStatus() != null) ? dto.getStatus() : "";
+
+                    // Only plot actual duty-status rows — matches ELDChart
+                    // lookupDriverStatusDataForGraphOperation
+                    // Login, Logout, Certified, Engine On/Off are excluded
+                    // PersonalUse → OffDuty row (4.0), YardMove → OnDuty row (1.0)
+                    double statusVal;
+                    if ("OffDuty".equalsIgnoreCase(st) || "OFF".equalsIgnoreCase(st)) {
+                        statusVal = 4.0; // OFF row
+                    } else if ("PersonalUse".equalsIgnoreCase(st)) {
+                        statusVal = 4.1; // PC (Personal Use) - OffDuty but dotted
+                    } else if ("OnSleep".equalsIgnoreCase(st) || "Sleeper".equalsIgnoreCase(st)
+                            || "SB".equalsIgnoreCase(st)) {
+                        statusVal = 3.0; // SB row
+                    } else if ("OnDrive".equalsIgnoreCase(st) || "Driving".equalsIgnoreCase(st)
+                            || "D".equalsIgnoreCase(st)) {
+                        statusVal = 2.0; // D row
+                    } else if ("OnDuty".equalsIgnoreCase(st) || "ON".equalsIgnoreCase(st)) {
+                        statusVal = 1.0; // ON row
+                    } else if ("YardMove".equalsIgnoreCase(st)) {
+                        statusVal = 1.1; // YM (Yard Move) - OnDuty but dotted
+                    } else {
+                        // Skip Login, Logout, Certified, Engine On/Off, etc.
+                        continue;
+                    }
+
+                    // Clamp to [0, 24] hour range — matches ELDChart behavior:
+                    // Previous day's last status → clamped to hour 0.0 (draws line from midnight)
+                    // Future entries → clamped to hour 24.0
                     double hourOffset = (double) (lTime - fromMillis) / 3600000.0;
                     if (hourOffset < 0.0) {
-                        hourOffset = 0.0;
+                        hourOffset = 0.0; // Previous day entry: draw from midnight
                     }
                     if (hourOffset > 24.0) {
                         hourOffset = 24.0;
                     }
 
-                    double statusVal = 1.0;
-                    String st = (dto.getStatus() != null) ? dto.getStatus() : "";
-                    if ("OffDuty".equalsIgnoreCase(st) || "OFF".equalsIgnoreCase(st)) {
-                        statusVal = 4.0;
-                    } else if ("OnSleep".equalsIgnoreCase(st) || "Sleeper".equalsIgnoreCase(st) || "SB".equalsIgnoreCase(st)) {
-                        statusVal = 3.0;
-                    } else if ("OnDrive".equalsIgnoreCase(st) || "Driving".equalsIgnoreCase(st) || "D".equalsIgnoreCase(st)) {
-                        statusVal = 2.0;
-                    } else if ("OnDuty".equalsIgnoreCase(st) || "ON".equalsIgnoreCase(st) || "YardMove".equalsIgnoreCase(st) || "PersonalUse".equalsIgnoreCase(st)) {
-                        statusVal = 1.0;
-                    }
-
                     series.add(hourOffset, statusVal);
                 }
+
+                // Skipped 24.0 padding line to match admin panel graph (no trailing line at end
+                // of day)
             } else {
                 series.add(0.0, 4.0);
                 series.add(24.0, 4.0);
             }
+
+            long durationOff = 0, durationSB = 0, durationD = 0, durationON = 0;
+            if (logs != null && logs.size() > 0) {
+                DriveringStatusViewDto firstLog = logs.get(0);
+                String firstStatus = (firstLog.getStatus() != null) ? firstLog.getStatus() : "";
+
+                long previousTime = fromMillis;
+                String previousStatus = firstStatus;
+
+                for (int i = 0; i < logs.size(); i++) {
+                    DriveringStatusViewDto current = logs.get(i);
+                    long currentTime = current.getLDateTime() > 0 ? current.getLDateTime() : current.getUtcDateTime();
+                    if (currentTime < fromMillis) {
+                        currentTime = fromMillis;
+                    }
+                    if (currentTime > toMillis) {
+                        currentTime = toMillis;
+                    }
+
+                    long diff = currentTime - previousTime;
+                    if (diff > 0) {
+                        if ("OffDuty".equalsIgnoreCase(previousStatus) || "OFF".equalsIgnoreCase(previousStatus)) {
+                            durationOff += diff;
+                        } else if ("OnSleep".equalsIgnoreCase(previousStatus)
+                                || "Sleeper".equalsIgnoreCase(previousStatus)
+                                || "SB".equalsIgnoreCase(previousStatus)) {
+                            durationSB += diff;
+                        } else if ("OnDrive".equalsIgnoreCase(previousStatus)
+                                || "Driving".equalsIgnoreCase(previousStatus) || "D".equalsIgnoreCase(previousStatus)) {
+                            durationD += diff;
+                        } else if ("OnDuty".equalsIgnoreCase(previousStatus) || "ON".equalsIgnoreCase(previousStatus)
+                                || "YardMove".equalsIgnoreCase(previousStatus)
+                                || "PersonalUse".equalsIgnoreCase(previousStatus)) {
+                            durationON += diff;
+                        }
+                    }
+
+                    previousTime = currentTime;
+                    previousStatus = (current.getStatus() != null) ? current.getStatus() : "";
+                }
+
+                long diff = toMillis - previousTime;
+                if (diff > 0) {
+                    if ("OffDuty".equalsIgnoreCase(previousStatus) || "OFF".equalsIgnoreCase(previousStatus)) {
+                        durationOff += diff;
+                    } else if ("OnSleep".equalsIgnoreCase(previousStatus) || "Sleeper".equalsIgnoreCase(previousStatus)
+                            || "SB".equalsIgnoreCase(previousStatus)) {
+                        durationSB += diff;
+                    } else if ("OnDrive".equalsIgnoreCase(previousStatus) || "Driving".equalsIgnoreCase(previousStatus)
+                            || "D".equalsIgnoreCase(previousStatus)) {
+                        durationD += diff;
+                    } else if ("OnDuty".equalsIgnoreCase(previousStatus) || "ON".equalsIgnoreCase(previousStatus)
+                            || "YardMove".equalsIgnoreCase(previousStatus)
+                            || "PersonalUse".equalsIgnoreCase(previousStatus)) {
+                        durationON += diff;
+                    }
+                }
+            } else {
+                durationOff = toMillis - fromMillis;
+            }
+
+            String strOff = formatDuration(durationOff);
+            String strSB = formatDuration(durationSB);
+            String strD = formatDuration(durationD);
+            String strON = formatDuration(durationON);
 
             XYSeriesCollection dataset = new XYSeriesCollection();
             dataset.addSeries(series);
 
             JFreeChart chart = ChartFactory.createXYLineChart(
                     "",
-                    "Hours (00:00 - 24:00)",
-                    "Duty Status",
+                    "",
+                    "",
                     dataset,
                     PlotOrientation.VERTICAL,
                     false,
                     false,
-                    false
-            );
+                    false);
 
             XYPlot plot = chart.getXYPlot();
             plot.setBackgroundPaint(java.awt.Color.WHITE);
-            plot.setDomainGridlinePaint(java.awt.Color.LIGHT_GRAY);
-            plot.setRangeGridlinePaint(java.awt.Color.LIGHT_GRAY);
+            plot.setOutlinePaint(java.awt.Color.BLACK);
+            // Pure black grid lines
+            plot.setDomainGridlinePaint(java.awt.Color.BLACK);
+            plot.setDomainGridlineStroke(new java.awt.BasicStroke(0.6f));
+            // NO horizontal range gridlines (admin panel doesn't have them)
+            plot.setRangeGridlinesVisible(false);
 
-            XYLineAndShapeRenderer renderer = new XYLineAndShapeRenderer(true, false);
-            renderer.setSeriesPaint(0, new java.awt.Color(4, 53, 109));
-            renderer.setSeriesStroke(0, new BasicStroke(2.5f));
+            // Custom multi-colored step renderer
+            XYLineAndShapeRenderer renderer = new XYLineAndShapeRenderer(true, false) {
+                @Override
+                protected void drawPrimaryLine(org.jfree.chart.renderer.xy.XYItemRendererState state,
+                        java.awt.Graphics2D g2, XYPlot plot, XYDataset dataset,
+                        int pass, int series, int item,
+                        org.jfree.chart.axis.ValueAxis domainAxis,
+                        org.jfree.chart.axis.ValueAxis rangeAxis,
+                        java.awt.geom.Rectangle2D dataArea) {
+                    if (item == 0) {
+                        return;
+                    }
+
+                    double x0 = dataset.getXValue(series, item - 1);
+                    double y0 = dataset.getYValue(series, item - 1);
+                    double x1 = dataset.getXValue(series, item);
+                    double y1 = dataset.getYValue(series, item);
+
+                    double actualY0 = (y0 == 4.1) ? 4.0 : (y0 == 1.1 ? 1.0 : y0);
+                    double actualY1 = (y1 == 4.1) ? 4.0 : (y1 == 1.1 ? 1.0 : y1);
+
+                    org.jfree.chart.ui.RectangleEdge domainEdge = plot.getDomainAxisEdge();
+                    org.jfree.chart.ui.RectangleEdge rangeEdge = plot.getRangeAxisEdge();
+
+                    double transX0 = domainAxis.valueToJava2D(x0, dataArea, domainEdge);
+                    double transY0 = rangeAxis.valueToJava2D(actualY0, dataArea, rangeEdge);
+                    double transX1 = domainAxis.valueToJava2D(x1, dataArea, domainEdge);
+                    double transY1 = rangeAxis.valueToJava2D(actualY1, dataArea, rangeEdge);
+
+                    if (Double.isNaN(transX0) || Double.isNaN(transY0) || Double.isNaN(transX1)
+                            || Double.isNaN(transY1)) {
+                        return;
+                    }
+
+                    // Paint for horizontal line segment
+                    java.awt.Paint paint0 = java.awt.Color.BLUE;
+                    if (y0 == 4.0 || y0 == 4.1) {
+                        paint0 = new java.awt.Color(255, 140, 0); // Orange for OFF / PC
+                    } else if (y0 == 3.0) {
+                        paint0 = java.awt.Color.BLACK; // Black for SB
+                    } else if (y0 == 2.0) {
+                        paint0 = new java.awt.Color(0, 128, 0); // Green for D
+                    } else if (y0 == 1.0 || y0 == 1.1) {
+                        paint0 = java.awt.Color.BLUE; // Blue for ON / YM
+                    }
+
+                    // Paint for vertical connecting line (destination status color)
+                    java.awt.Paint paint1 = java.awt.Color.BLUE;
+                    if (y1 == 4.0 || y1 == 4.1) {
+                        paint1 = new java.awt.Color(255, 140, 0); // Orange
+                    } else if (y1 == 3.0) {
+                        paint1 = java.awt.Color.BLACK;
+                    } else if (y1 == 2.0) {
+                        paint1 = new java.awt.Color(0, 128, 0); // Green
+                    } else if (y1 == 1.0 || y1 == 1.1) {
+                        paint1 = java.awt.Color.BLUE;
+                    }
+
+                    java.awt.Stroke stroke0 = new java.awt.BasicStroke(3.0f);
+                    if (y0 == 4.1 || y0 == 1.1) {
+                        // Dotted line for PersonalUse (4.1) and YardMove (1.1)
+                        stroke0 = new java.awt.BasicStroke(3.0f, java.awt.BasicStroke.CAP_BUTT,
+                                java.awt.BasicStroke.JOIN_MITER, 10.0f, new float[]{6.0f, 6.0f}, 0.0f);
+                    }
+
+                    java.awt.Stroke stroke1 = new java.awt.BasicStroke(3.0f);
+                    if (y1 == 4.1 || y1 == 1.1) {
+                        stroke1 = new java.awt.BasicStroke(3.0f, java.awt.BasicStroke.CAP_BUTT,
+                                java.awt.BasicStroke.JOIN_MITER, 10.0f, new float[]{6.0f, 6.0f}, 0.0f);
+                    }
+
+                    // Draw step lines: horizontal uses source status color, vertical uses
+                    // destination status color
+                    g2.setStroke(stroke0);
+                    g2.setPaint(paint0);
+                    g2.draw(new java.awt.geom.Line2D.Double(transX0, transY0, transX1, transY0));
+
+                    // Vertical connecting line uses destination color (admin panel style)
+                    g2.setStroke(stroke1);
+                    g2.setPaint(paint1);
+                    g2.draw(new java.awt.geom.Line2D.Double(transX1, transY0, transX1, transY1));
+                }
+            };
             plot.setRenderer(renderer);
 
-            SymbolAxis yAxis = new SymbolAxis("", new String[]{"", "ON DUTY", "DRIVING", "SLEEPER", "OFF DUTY"});
+            java.awt.Font tickFont = new java.awt.Font("Helvetica", java.awt.Font.BOLD, 10);
+
+            // Left Y-axis (primary status names)
+            SymbolAxis yAxis = new SymbolAxis("", new String[]{"", "ON", "D", "SB", "OFF"});
             yAxis.setGridBandsVisible(false);
+            yAxis.setRange(0.5, 4.5);
+            yAxis.setTickLabelFont(tickFont);
+            yAxis.setTickLabelPaint(java.awt.Color.BLACK); // Pure Black
             plot.setRangeAxis(yAxis);
 
-            BufferedImage chartImage = chart.createBufferedImage(800, 180, null);
+            // Right Y-axis (secondary total durations)
+            SymbolAxis yAxisRight = new SymbolAxis("", new String[]{"", strON, strD, strSB, strOff});
+            yAxisRight.setGridBandsVisible(false);
+            yAxisRight.setRange(0.5, 4.5);
+            yAxisRight.setTickLabelFont(tickFont);
+            yAxisRight.setTickLabelPaint(java.awt.Color.BLACK); // Pure Black
+            plot.setRangeAxis(1, yAxisRight);
+
+            // X-axis configuration (Top Axis) - Pure Black numbers
+            org.jfree.chart.axis.NumberAxis domainAxis = (org.jfree.chart.axis.NumberAxis) plot.getDomainAxis();
+            domainAxis.setRange(0.0, 24.0);
+            domainAxis.setTickUnit(new org.jfree.chart.axis.NumberTickUnit(1.0));
+            domainAxis.setMinorTickCount(4);
+            domainAxis.setMinorTickMarksVisible(true);
+            domainAxis.setTickLabelFont(tickFont);
+            domainAxis.setTickLabelPaint(java.awt.Color.BLACK);
+            domainAxis.setTickMarkInsideLength(4.0f);
+            domainAxis.setMinorTickMarkInsideLength(2.0f);
+            plot.setDomainAxisLocation(org.jfree.chart.axis.AxisLocation.TOP_OR_LEFT);
+
+            // Bottom X-axis (to draw tick marks at the bottom edge of the grid)
+            org.jfree.chart.axis.NumberAxis domainAxisBottom = new org.jfree.chart.axis.NumberAxis();
+            domainAxisBottom.setRange(0.0, 24.0);
+            domainAxisBottom.setTickUnit(new org.jfree.chart.axis.NumberTickUnit(1.0));
+            domainAxisBottom.setMinorTickCount(4);
+            domainAxisBottom.setMinorTickMarksVisible(true);
+            domainAxisBottom.setTickLabelsVisible(false); // Hide numbers at the bottom
+            domainAxisBottom.setTickMarkInsideLength(4.0f);
+            domainAxisBottom.setMinorTickMarkInsideLength(2.0f);
+            plot.setDomainAxis(1, domainAxisBottom);
+            plot.setDomainAxisLocation(1, org.jfree.chart.axis.AxisLocation.BOTTOM_OR_LEFT);
+
+            // Disable minor vertical grid lines extending across the plot, so we only have
+            // hourly vertical grid lines
+            plot.setDomainMinorGridlinesVisible(false);
+
+            // Draw quarter-hour tick marks inside the grid using XYLineAnnotations
+            java.awt.Stroke tickStroke = new java.awt.BasicStroke(0.7f);
+            java.awt.Paint tickPaintBlack = java.awt.Color.BLACK; // Pure Black for all ticks
+            for (double y = 1.0; y <= 4.0; y += 1.0) {
+                for (int h = 0; h < 24; h++) {
+                    // 15 mins (0.25)
+                    plot.addAnnotation(new org.jfree.chart.annotations.XYLineAnnotation(
+                            h + 0.25, y - 0.15, h + 0.25, y + 0.15, tickStroke, tickPaintBlack));
+                    // 30 mins (0.50) - longer tick
+                    plot.addAnnotation(new org.jfree.chart.annotations.XYLineAnnotation(
+                            h + 0.50, y - 0.25, h + 0.50, y + 0.25, tickStroke, tickPaintBlack));
+                    // 45 mins (0.75)
+                    plot.addAnnotation(new org.jfree.chart.annotations.XYLineAnnotation(
+                            h + 0.75, y - 0.15, h + 0.75, y + 0.15, tickStroke, tickPaintBlack));
+                }
+            }
+
+            BufferedImage chartImage = chart.createBufferedImage(1000, 210, null);
             ByteArrayOutputStream baos = new ByteArrayOutputStream();
             ImageIO.write(chartImage, "png", baos);
             Image pdfChartImage = Image.getInstance(baos.toByteArray());
-            pdfChartImage.scaleToFit(540.0F, 130.0F);
+            pdfChartImage.scaleToFit(540.0F, 150.0F);
             pdfChartImage.setAlignment(Element.ALIGN_CENTER);
             return pdfChartImage;
         } catch (Exception e) {
@@ -1634,11 +2032,28 @@ public class DispatchServiceImpl implements DispatchService {
             cell.setBackgroundColor(bg);
             cell.setVerticalAlignment(Element.ALIGN_MIDDLE);
             cell.setPadding(4.0F);
-            if (i == 0 || i == 1 || i == 4 || i == 5) {
+            if (i == 0 || i == 1 || i == 3 || i == 4 || i == 5) {
                 cell.setHorizontalAlignment(Element.ALIGN_CENTER);
             }
             table.addCell(cell);
         }
+    }
+
+    private PdfPCell createMetadataCell(String label, String value, Font labelFont, Font valueFont) {
+        PdfPCell cell = new PdfPCell();
+        cell.setBorder(PdfPCell.BOTTOM);
+        cell.setBorderColorBottom(BaseColor.LIGHT_GRAY);
+        cell.setBorderWidthBottom(0.5f);
+        cell.setPadding(4.0F);
+
+        Paragraph pLabel = new Paragraph(label, labelFont);
+        pLabel.setSpacingAfter(1.0F);
+        cell.addElement(pLabel);
+
+        Paragraph pValue = new Paragraph(value != null ? value : "", valueFont);
+        cell.addElement(pValue);
+
+        return cell;
     }
 
     public Map<String, Object> createDriverLogStatusPDF(long driverId, long from, long to, String sDriverName) {
@@ -1666,20 +2081,33 @@ public class DispatchServiceImpl implements DispatchService {
             String cdlNo = (empInfo != null && empInfo.getCdlNo() != null) ? empInfo.getCdlNo() : "";
             String username = (empInfo != null && empInfo.getUsername() != null) ? empInfo.getUsername() : "";
 
-            ClientMaster clientInfo = (empInfo != null && empInfo.getClientId() > 0) ? this.clientMasterRepo.findByClientId((int) empInfo.getClientId()) : null;
-            String companyName = (clientInfo != null && clientInfo.getClientName() != null) ? clientInfo.getClientName() : "GBT USA";
+            ClientMaster clientInfo = (empInfo != null && empInfo.getClientId() > 0)
+                    ? this.clientMasterRepo.findByClientId((int) empInfo.getClientId())
+                    : null;
+            String companyName = (clientInfo != null && clientInfo.getClientName() != null) ? clientInfo.getClientName()
+                    : "GBT USA";
             String dotNo = (clientInfo != null && clientInfo.getDotNo() != null) ? clientInfo.getDotNo() : "";
 
-            VehicleMaster vehInfo = (empInfo != null && empInfo.getTruckNo() > 0) ? this.vehicleMasterRepo.findByVehicleId((int) empInfo.getTruckNo()) : null;
+            VehicleMaster vehInfo = (empInfo != null && empInfo.getTruckNo() > 0)
+                    ? this.vehicleMasterRepo.findByVehicleId((int) empInfo.getTruckNo())
+                    : null;
             String vehicleNo = (vehInfo != null && vehInfo.getVehicleNo() != null) ? vehInfo.getVehicleNo() : "";
             String vin = (vehInfo != null && vehInfo.getVin() != null) ? vehInfo.getVin() : "";
 
-            MainTerminalMaster terminal = (empInfo != null && empInfo.getMainTerminalId() > 0) ? this.mainTerminalMasterRepo.findByMainTerminalId((int) empInfo.getMainTerminalId()) : null;
-            String terminalName = (terminal != null && terminal.getMainTerminalName() != null) ? terminal.getMainTerminalName() : "";
+            MainTerminalMaster terminal = (empInfo != null && empInfo.getMainTerminalId() > 0)
+                    ? this.mainTerminalMasterRepo.findByMainTerminalId((int) empInfo.getMainTerminalId())
+                    : null;
+            String terminalName = (terminal != null && terminal.getMainTerminalName() != null)
+                    ? terminal.getMainTerminalName()
+                    : "";
 
             List<ELDSettings> settings = this.eldSettingsRepo.findAndViewBySettingId(1);
-            String eldProvider = (settings.size() > 0 && settings.get(0).getEldProvider() != null) ? settings.get(0).getEldProvider() : "gbt-usa";
-            String eldRegistrationId = (settings.size() > 0 && settings.get(0).getEldRegistrationId() != null) ? settings.get(0).getEldRegistrationId() : "NA";
+            String eldProvider = (settings.size() > 0 && settings.get(0).getEldProvider() != null)
+                    ? settings.get(0).getEldProvider()
+                    : "gbt-usa";
+            String eldRegistrationId = (settings.size() > 0 && settings.get(0).getEldRegistrationId() != null)
+                    ? settings.get(0).getEldRegistrationId()
+                    : "NA";
 
             List<CertifiedLogViewDto> certifiedLogs = this.lookupCertifiedLogDataOperation(from, to, driverId);
             String coDriverName = "None";
@@ -1703,25 +2131,107 @@ public class DispatchServiceImpl implements DispatchService {
                 signaturePath = cert.getCertifiedSignature();
             }
 
-            List<DriveringStatusViewDto> driverLogs = this.lookupDriverStatusDataOperation(from, to, driverId);
+            List<DriveringStatusViewDto> driverLogs = new ArrayList<>(
+                    this.lookupDriverStatusDataOperation(from, to, driverId));
+
+            // Fetch and append Login and Logout logs
+            try {
+                List<LoginLog> loginLog = this.lookupLoginLogDataOperation(from, to, driverId, "loginDateTime");
+                SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
+                for (LoginLog log : loginLog) {
+                    if (log.getLoginDateTime() > 0L) {
+                        DriveringStatusViewDto row = new DriveringStatusViewDto();
+                        row.setDriverId(driverId);
+                        row.setDriverName(driverName);
+                        row.setDateTime(sdf.format(new Date(log.getLoginDateTime())));
+                        row.setUtcDateTime(log.getLoginDateTime());
+                        row.setStatus("Login");
+                        row.setOrigin("Driver");
+                        row.setOdometer(0.0);
+                        row.setEngineHour("0");
+                        row.setNote("");
+                        row.setCustomLocation("");
+                        row.setLogType("Login");
+                        row.setIsActive(0);
+                        driverLogs.add(row);
+                    }
+                }
+
+                loginLog = this.lookupLoginLogDataOperation(from, to, driverId, "logoutDateTime");
+                for (LoginLog log : loginLog) {
+                    if (log.getLogoutDateTime() > 0L) {
+                        DriveringStatusViewDto row = new DriveringStatusViewDto();
+                        row.setDriverId(driverId);
+                        row.setDriverName(driverName);
+                        row.setDateTime(sdf.format(new Date(log.getLogoutDateTime())));
+                        row.setUtcDateTime(log.getLogoutDateTime());
+                        row.setStatus("Logout");
+                        row.setOrigin("Driver");
+                        row.setOdometer(0.0);
+                        row.setEngineHour("0");
+                        row.setNote("");
+                        row.setCustomLocation("");
+                        row.setLogType("Logout");
+                        row.setIsActive(0);
+                        driverLogs.add(row);
+                    }
+                }
+            } catch (Exception ex) {
+                ex.printStackTrace();
+            }
+
+            // Fetch and append Certified logs
+            try {
+                List<CertifiedLogViewDto> certifiedLog = this.lookupCertifiedLogDataOperation(from, to, driverId);
+                SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
+                for (CertifiedLogViewDto log : certifiedLog) {
+                    DriveringStatusViewDto row = new DriveringStatusViewDto();
+                    row.setDriverId(driverId);
+                    row.setDriverName(driverName);
+                    row.setDateTime(sdf.format(new Date(log.getLCertifiedDate())));
+                    row.setUtcDateTime(log.getLCertifiedDate());
+                    row.setStatus("Certified");
+                    row.setOrigin("Driver");
+                    row.setOdometer(0.0);
+                    row.setEngineHour("0");
+                    row.setNote("");
+                    row.setCustomLocation("");
+                    row.setLogType("Certified Log");
+                    row.setIsActive(0);
+                    driverLogs.add(row);
+                }
+            } catch (Exception ex) {
+                ex.printStackTrace();
+            }
+
+            // Sort all logs chronologically ascending
+            try {
+                driverLogs.sort((a, b) -> Long.compare(a.getUtcDateTime(), b.getUtcDateTime()));
+            } catch (Exception ex) {
+                ex.printStackTrace();
+            }
 
             // Calculate odometer & engine hours
             double startOdo = 0.0, endOdo = 0.0, totalDistance = 0.0;
             String startEngineHr = "0.0", endEngineHr = "0.0";
             try {
                 Pageable ascPage = PageRequest.of(0, 1, Sort.by(new String[]{"utcDateTime"}).ascending());
-                Query qAsc = new Query(Criteria.where("utcDateTime").gte(from).lte(to).and("driverId").is(driverId).and("odometer").gt(0));
+                Query qAsc = new Query(Criteria.where("utcDateTime").gte(from).lte(to).and("driverId").is(driverId)
+                        .and("odometer").gt(0));
                 qAsc.with(ascPage);
-                List<DriveringStatusViewDto> ascList = this.mongoTemplate.find(qAsc, DriveringStatusViewDto.class, "drivering_status");
+                List<DriveringStatusViewDto> ascList = this.mongoTemplate.find(qAsc, DriveringStatusViewDto.class,
+                        "drivering_status");
                 if (ascList.size() > 0) {
                     startOdo = ascList.get(0).getOdometer();
                     startEngineHr = (ascList.get(0).getEngineHour() != null) ? ascList.get(0).getEngineHour() : "0.0";
                 }
 
                 Pageable descPage = PageRequest.of(0, 1, Sort.by(new String[]{"utcDateTime"}).descending());
-                Query qDesc = new Query(Criteria.where("utcDateTime").gte(from).lte(to).and("driverId").is(driverId).and("odometer").gt(0));
+                Query qDesc = new Query(Criteria.where("utcDateTime").gte(from).lte(to).and("driverId").is(driverId)
+                        .and("odometer").gt(0));
                 qDesc.with(descPage);
-                List<DriveringStatusViewDto> descList = this.mongoTemplate.find(qDesc, DriveringStatusViewDto.class, "drivering_status");
+                List<DriveringStatusViewDto> descList = this.mongoTemplate.find(qDesc, DriveringStatusViewDto.class,
+                        "drivering_status");
                 if (descList.size() > 0) {
                     endOdo = descList.get(0).getOdometer();
                     endEngineHr = (descList.get(0).getEngineHour() != null) ? descList.get(0).getEngineHour() : "0.0";
@@ -1736,50 +2246,182 @@ public class DispatchServiceImpl implements DispatchService {
             SimpleDateFormat dfDate = new SimpleDateFormat("yyyy-MM-dd");
             String reportDateStr = dfDate.format(new Date(from));
 
-            // Document Title Header
-            Paragraph titleP = new Paragraph("DRIVER'S RECORD OF DUTY STATUS (DOT ELD REPORT)", titleFont);
+            // Document Title Header (Driver's Daily Log)
+            Paragraph titleP = new Paragraph("Driver's Daily Log",
+                    new Font(FontFamily.HELVETICA, 16.0F, Font.BOLD, headerBg));
             titleP.setAlignment(Element.ALIGN_CENTER);
-            titleP.setSpacingAfter(8.0F);
             document.add(titleP);
 
+            Paragraph dateP = new Paragraph(reportDateStr,
+                    new Font(FontFamily.HELVETICA, 12.0F, Font.BOLD, BaseColor.BLACK));
+            dateP.setAlignment(Element.ALIGN_CENTER);
+            document.add(dateP);
+
+            String cycleName = "70 hrs/8 days";
+            if (empInfo != null) {
+                try {
+                    CycleUsa cycleUsaData = this.cycleUsaRepo.findByCycleUsaId((int) empInfo.getCycleUsaId());
+                    if (cycleUsaData != null) {
+                        cycleName = cycleUsaData.getCycleHour() + " hrs/" + cycleUsaData.getCycleDays() + " days";
+                    }
+                } catch (Exception ex) {
+                    ex.printStackTrace();
+                }
+            }
+            Paragraph cycleP = new Paragraph(cycleName,
+                    new Font(FontFamily.HELVETICA, 11.0F, Font.NORMAL, BaseColor.DARK_GRAY));
+            cycleP.setAlignment(Element.ALIGN_CENTER);
+            cycleP.setSpacingAfter(12.0F);
+            document.add(cycleP);
+
             // --- METADATA HEADER GRID (A to Z Details) ---
-            PdfPTable headerTable = new PdfPTable(4);
-            headerTable.setWidthPercentage(100.0F);
-            headerTable.setWidths(new float[]{2.0F, 3.0F, 2.0F, 3.0F});
-            headerTable.setSpacingAfter(8.0F);
+            Font mLabelFont = new Font(FontFamily.HELVETICA, 7.0F, Font.NORMAL, BaseColor.GRAY);
+            Font mValueFont = new Font(FontFamily.HELVETICA, 8.0F, Font.BOLD, BaseColor.BLACK);
 
-            addCellPair(headerTable, "Date:", reportDateStr, labelFont, valueFont);
-            addCellPair(headerTable, "Driver Name:", driverName, labelFont, valueFont);
-            addCellPair(headerTable, "Driver Username:", username, labelFont, valueFont);
-            addCellPair(headerTable, "Co-Driver Name:", coDriverName, labelFont, valueFont);
+            String cdlState = "";
+            if (empInfo != null && empInfo.getCdlStateId() > 0L) {
+                try {
+                    StateMaster stateInfo = this.stateMasterRepo.findByStateId((int) empInfo.getCdlStateId());
+                    if (stateInfo != null) {
+                        cdlState = stateInfo.getStateName();
+                    }
+                } catch (Exception ex) {
+                    ex.printStackTrace();
+                }
+            }
 
-            addCellPair(headerTable, "Carrier / Company:", companyName, labelFont, valueFont);
-            addCellPair(headerTable, "USDOT Number:", dotNo, labelFont, valueFont);
-            addCellPair(headerTable, "Main Terminal:", terminalName, labelFont, valueFont);
-            addCellPair(headerTable, "CDL No / State:", cdlNo, labelFont, valueFont);
+            String exemptDriverStatus = "No";
+            if (empInfo != null && "active".equalsIgnoreCase(empInfo.getExempt())) {
+                exemptDriverStatus = "Yes";
+            }
 
-            addCellPair(headerTable, "Vehicle / Truck No:", vehicleNo, labelFont, valueFont);
-            addCellPair(headerTable, "VIN Number:", vin, labelFont, valueFont);
-            addCellPair(headerTable, "Trailer(s):", trailers, labelFont, valueFont);
-            addCellPair(headerTable, "Shipping Doc(s):", shippingDocs, labelFont, valueFont);
+            String unidentifiedDrivingRecords = "No";
+            for (DriveringStatusViewDto log : driverLogs) {
+                if ("Unidentified".equalsIgnoreCase(log.getOrigin())) {
+                    unidentifiedDrivingRecords = "Yes";
+                    break;
+                }
+            }
 
-            addCellPair(headerTable, "Start Odometer:", String.format("%.2f", startOdo), labelFont, valueFont);
-            addCellPair(headerTable, "End Odometer:", String.format("%.2f", endOdo), labelFont, valueFont);
-            addCellPair(headerTable, "Distance Traveled:", String.format("%.2f miles", totalDistance), labelFont, valueFont);
-            addCellPair(headerTable, "Engine Hours:", startEngineHr + " - " + endEngineHr, labelFont, valueFont);
+            String coDriverId = "None";
+            if (certifiedLogs.size() > 0 && certifiedLogs.get(0).getCoDriverId() > 0L) {
+                try {
+                    EmployeeMaster coEmp = this.employeeMasterRepo
+                            .findByEmployeeId((int) certifiedLogs.get(0).getCoDriverId());
+                    if (coEmp != null) {
+                        coDriverId = coEmp.getUsername();
+                    }
+                } catch (Exception ex) {
+                    ex.printStackTrace();
+                }
+            }
 
-            addCellPair(headerTable, "ELD Provider:", eldProvider, labelFont, valueFont);
-            addCellPair(headerTable, "ELD Registration ID:", eldRegistrationId, labelFont, valueFont);
+            String eldIdentifier = (settings.size() > 0 && settings.get(0).getEldIdentifier() != null)
+                    ? settings.get(0).getEldIdentifier()
+                    : "NA";
+            String driverCertified = certifiedLogs.size() > 0 ? "Yes" : "No";
 
-            document.add(headerTable);
+            String mainAddress = "";
+            if (clientInfo != null) {
+                try {
+                    CountryMaster countryInfo = this.countryMasterRepo.findByCountryId((int) clientInfo.getCountryId());
+                    String countryName = (countryInfo != null) ? countryInfo.getCountryName() : "";
+                    mainAddress = (clientInfo.getStreet() != null ? clientInfo.getStreet() : "")
+                            + " " + (clientInfo.getCity() != null ? clientInfo.getCity() : "")
+                            + " " + countryName;
+                } catch (Exception ex) {
+                    ex.printStackTrace();
+                }
+            }
+
+            PdfPTable t1 = new PdfPTable(4);
+            t1.setWidthPercentage(100.0F);
+            t1.setWidths(new float[]{2.5F, 2.5F, 2.5F, 2.5F});
+            t1.setSpacingAfter(4.0F);
+            t1.addCell(createMetadataCell("DRIVER NAME", driverName, mLabelFont, mValueFont));
+            t1.addCell(createMetadataCell("DRIVER ID", username, mLabelFont, mValueFont));
+            t1.addCell(createMetadataCell("DRIVER LICENSE", cdlNo, mLabelFont, mValueFont));
+            t1.addCell(createMetadataCell("DRIVER LICENCE STATE", cdlState, mLabelFont, mValueFont));
+            document.add(t1);
+
+            PdfPTable t2 = new PdfPTable(4);
+            t2.setWidthPercentage(100.0F);
+            t2.setWidths(new float[]{2.5F, 2.5F, 2.5F, 2.5F});
+            t2.setSpacingAfter(4.0F);
+            t2.addCell(createMetadataCell("EXEMPT DRIVER STATUS", exemptDriverStatus, mLabelFont, mValueFont));
+            t2.addCell(createMetadataCell("UNIDENTIFIED DRIVING RECORDS", unidentifiedDrivingRecords, mLabelFont,
+                    mValueFont));
+            t2.addCell(createMetadataCell("CO-DRIVER", coDriverName, mLabelFont, mValueFont));
+            t2.addCell(createMetadataCell("CO-DRIVER ID", coDriverId, mLabelFont, mValueFont));
+            document.add(t2);
+
+            PdfPTable t3 = new PdfPTable(3);
+            t3.setWidthPercentage(100.0F);
+            t3.setWidths(new float[]{4.0F, 2.5F, 3.5F});
+            t3.setSpacingAfter(4.0F);
+            t3.addCell(createMetadataCell("ELD REGISTRATION ID", eldRegistrationId, mLabelFont, mValueFont));
+            t3.addCell(createMetadataCell("ELD IDENTIFIER", eldIdentifier, mLabelFont, mValueFont));
+            t3.addCell(createMetadataCell("PROVIDER", eldProvider, mLabelFont, mValueFont));
+            document.add(t3);
+
+            PdfPTable t4 = new PdfPTable(4);
+            t4.setWidthPercentage(100.0F);
+            t4.setWidths(new float[]{2.5F, 2.5F, 2.5F, 2.5F});
+            t4.setSpacingAfter(4.0F);
+            t4.addCell(createMetadataCell("DATA DIAGNOSTIC INDICATORS", "No", mLabelFont, mValueFont));
+            t4.addCell(createMetadataCell("DEVICE MALFUNCTION INDICATORS", "No", mLabelFont, mValueFont));
+            t4.addCell(createMetadataCell("DISPLAY DATE", reportDateStr, mLabelFont, mValueFont));
+            t4.addCell(createMetadataCell("DRIVER CERTIFIED", driverCertified, mLabelFont, mValueFont));
+            document.add(t4);
+
+            PdfPTable t5 = new PdfPTable(5);
+            t5.setWidthPercentage(100.0F);
+            t5.setWidths(new float[]{2.0F, 3.0F, 1.8F, 1.8F, 1.4F});
+            t5.setSpacingAfter(4.0F);
+            t5.addCell(createMetadataCell("VEHICLE", vehicleNo, mLabelFont, mValueFont));
+            t5.addCell(createMetadataCell("VIN", vin, mLabelFont, mValueFont));
+            t5.addCell(createMetadataCell("ODOMETER (MI)", String.format("%.2f", endOdo), mLabelFont, mValueFont));
+            t5.addCell(
+                    createMetadataCell("DISTANCE (MI)", String.format("%.2f", totalDistance), mLabelFont, mValueFont));
+            t5.addCell(createMetadataCell("ENGINE HOURS", endEngineHr, mLabelFont, mValueFont));
+            document.add(t5);
+
+            PdfPTable t6 = new PdfPTable(6);
+            t6.setWidthPercentage(100.0F);
+            t6.setWidths(new float[]{1.5F, 1.5F, 1.5F, 1.5F, 2.0F, 2.0F});
+            t6.setSpacingAfter(8.0F);
+            t6.addCell(createMetadataCell("TRAILERS", trailers, mLabelFont, mValueFont));
+            t6.addCell(createMetadataCell("SHIPPING DOCS", shippingDocs, mLabelFont, mValueFont));
+            t6.addCell(createMetadataCell("CARRIER", companyName, mLabelFont, mValueFont));
+            t6.addCell(createMetadataCell("DOT NO.", dotNo, mLabelFont, mValueFont));
+            t6.addCell(createMetadataCell("MAIN ADDRESS", mainAddress, mLabelFont, mValueFont));
+            t6.addCell(createMetadataCell("HOME TERMINAL", terminalName, mLabelFont, mValueFont));
+            document.add(t6);
 
             // --- 24-HOUR DUTY STATUS GRAPH CHART ---
             try {
-                Image graphImg = generate24HourGraphImage(driverLogs, from, to);
+                List<DriveringStatusViewDto> activeLogsForGraph = new ArrayList<>();
+                for (DriveringStatusViewDto log : driverLogs) {
+                    Integer actVal = log.getIsActive();
+                    if (actVal != null && (actVal == 0 || actVal == 2)) {
+                        activeLogsForGraph.add(log);
+                    }
+                }
+                Image graphImg = generate24HourGraphImage(activeLogsForGraph, from, to);
                 if (graphImg != null) {
-                    Paragraph graphTitle = new Paragraph("24-HOUR DUTY STATUS GRAPH", new Font(FontFamily.HELVETICA, 9.0F, Font.BOLD, headerBg));
-                    graphTitle.setSpacingAfter(4.0F);
-                    document.add(graphTitle);
+                    // Add "Hours Of Service" title above graph - matching admin panel design
+                    Paragraph hosTitle = new Paragraph("Hours Of Service",
+                            new Font(FontFamily.HELVETICA, 11.0F, Font.BOLD, new BaseColor(30, 30, 30)));
+                    hosTitle.setAlignment(Element.ALIGN_CENTER);
+                    hosTitle.setSpacingBefore(6.0F);
+                    document.add(hosTitle);
+
+                    Paragraph hosSubtitle = new Paragraph("Time In Hours.",
+                            new Font(FontFamily.HELVETICA, 8.0F, Font.NORMAL, BaseColor.DARK_GRAY));
+                    hosSubtitle.setAlignment(Element.ALIGN_CENTER);
+                    hosSubtitle.setSpacingAfter(2.0F);
+                    document.add(hosSubtitle);
+
                     document.add(graphImg);
                     document.add(Chunk.NEWLINE);
                 }
@@ -1788,16 +2430,13 @@ public class DispatchServiceImpl implements DispatchService {
             }
 
             // --- DUTY STATUS EVENT LOGS TABLE (A to Z Status Logs) ---
-            Paragraph logSecTitle = new Paragraph("DUTY STATUS EVENT LOGS", new Font(FontFamily.HELVETICA, 10.0F, Font.BOLD, headerBg));
-            logSecTitle.setSpacingAfter(5.0F);
-            document.add(logSecTitle);
-
             PdfPTable logTable = new PdfPTable(7);
             logTable.setWidthPercentage(100.0F);
-            logTable.setWidths(new float[]{1.8F, 2.8F, 1.8F, 3.5F, 2.0F, 2.0F, 2.5F});
+            logTable.setWidths(new float[]{2.5F, 1.8F, 3.0F, 1.8F, 1.8F, 1.8F, 2.3F});
             logTable.setSpacingAfter(12.0F);
 
-            addTableHeader(logTable, new String[]{"Status", "Time", "Duration", "Location", "Odometer", "Eng. Hours", "Notes / Origin"}, tableHeaderFont, headerBg);
+            addTableHeader(logTable, new String[]{"TIME (PT)", "STATUS", "LOCATION", "ODOMETER (MI)", "ENGINE HOURS",
+                "ORIGIN", "NOTES"}, tableHeaderFont, headerBg);
 
             for (int i = 0; i < driverLogs.size(); i++) {
                 DriveringStatusViewDto row = driverLogs.get(i);
@@ -1805,16 +2444,24 @@ public class DispatchServiceImpl implements DispatchService {
 
                 String statusStr = (row.getStatus() != null) ? row.getStatus() : "";
                 String timeStr = (row.getDateTime() != null) ? row.getDateTime() : "";
-                String locStr = (row.getCustomLocation() != null && !row.getCustomLocation().isEmpty()) ? row.getCustomLocation() : (row.getLattitude() + ", " + row.getLongitude());
-                String odoStr = String.format("%.1f", row.getOdometer());
-                String engHrStr = (row.getEngineHour() != null) ? row.getEngineHour() : "0.0";
-                String noteOrigin = (row.getNote() != null && !row.getNote().isEmpty()) ? row.getNote() : ((row.getOrigin() != null) ? row.getOrigin() : "");
+                String locStr = (row.getCustomLocation() != null && !row.getCustomLocation().isEmpty())
+                        ? row.getCustomLocation()
+                        : (row.getLattitude() + ", " + row.getLongitude());
+                if ("0.0, 0.0".equals(locStr) || "0, 0".equals(locStr)) {
+                    locStr = "";
+                }
+                String odoStr = String.format("%.2f", row.getOdometer());
+                String engHrStr = (row.getEngineHour() != null) ? row.getEngineHour() : "0.00";
+                String originStr = (row.getOrigin() != null) ? row.getOrigin() : "";
+                String noteStr = (row.getNote() != null) ? row.getNote() : "";
 
-                addTableRow(logTable, new String[]{statusStr, timeStr, "-", locStr, odoStr, engHrStr, noteOrigin}, tableDataFont, rowBg);
+                addTableRow(logTable, new String[]{timeStr, statusStr, locStr, odoStr, engHrStr, originStr, noteStr},
+                        tableDataFont, rowBg);
             }
 
             if (driverLogs.size() == 0) {
-                PdfPCell emptyCell = new PdfPCell(new Phrase("No duty status log records found for this period.", tableDataFont));
+                PdfPCell emptyCell = new PdfPCell(
+                        new Phrase("No duty status log records found for this period.", tableDataFont));
                 emptyCell.setColspan(7);
                 emptyCell.setHorizontalAlignment(Element.ALIGN_CENTER);
                 emptyCell.setPadding(8.0F);
@@ -1824,11 +2471,14 @@ public class DispatchServiceImpl implements DispatchService {
             document.add(logTable);
 
             // --- DRIVER CERTIFICATION & SIGNATURE ---
-            Paragraph certTitle = new Paragraph("DRIVER CERTIFICATION", new Font(FontFamily.HELVETICA, 10.0F, Font.BOLD, headerBg));
+            Paragraph certTitle = new Paragraph("DRIVER CERTIFICATION",
+                    new Font(FontFamily.HELVETICA, 10.0F, Font.BOLD, headerBg));
             certTitle.setSpacingAfter(4.0F);
             document.add(certTitle);
 
-            Paragraph certStmt = new Paragraph("I hereby certify that my data entries and my record of duty status for this 24-hour period are true and correct.", valueFont);
+            Paragraph certStmt = new Paragraph(
+                    "I hereby certify that my data entries and my record of duty status for this 24-hour period are true and correct.",
+                    valueFont);
             certStmt.setSpacingAfter(6.0F);
             document.add(certStmt);
 
@@ -1875,19 +2525,26 @@ public class DispatchServiceImpl implements DispatchService {
             List<DVIRDataCRUDDto> dvirDataViewDto = this.lookupDVIRDataOperation(from, to, driverId);
             EmployeeMaster empInfo = this.employeeMasterRepo.findByEmployeeId((int) driverId);
             ClientMaster clientInfo = this.clientMasterRepo.findByClientId((int) empInfo.getClientId());
-            VehicleMaster vehcileInfo = this.vehicleMasterRepo.findByVehicleId((int) dvirDataViewDto.get(0).getVehicleId());
+            VehicleMaster vehcileInfo = this.vehicleMasterRepo
+                    .findByVehicleId((int) dvirDataViewDto.get(0).getVehicleId());
             String vin = vehcileInfo.getVin();
             String vehicleNo = vehcileInfo.getVehicleNo();
             String driverName = empInfo.getFirstName() + " " + empInfo.getLastName();
             String companyName = clientInfo.getClientName();
             String dateTime = dvirDataViewDto.size() > 0 ? dvirDataViewDto.get(0).getDateTime() : "";
             String location = dvirDataViewDto.size() > 0 ? dvirDataViewDto.get(0).getLocation() : "";
-            String trailer = dvirDataViewDto.size() > 0 ? String.join(",", dvirDataViewDto.get(0).getTrailer()) : "None";
-            String vehicleDefect = dvirDataViewDto.size() > 0 ? String.join(",", dvirDataViewDto.get(0).getTruckDefect()) : "None";
-            String trailerDefect = dvirDataViewDto.size() > 0 ? String.join(",", dvirDataViewDto.get(0).getTrailerDefect()) : "None";
+            String trailer = dvirDataViewDto.size() > 0 ? String.join(",", dvirDataViewDto.get(0).getTrailer())
+                    : "None";
+            String vehicleDefect = dvirDataViewDto.size() > 0
+                    ? String.join(",", dvirDataViewDto.get(0).getTruckDefect())
+                    : "None";
+            String trailerDefect = dvirDataViewDto.size() > 0
+                    ? String.join(",", dvirDataViewDto.get(0).getTrailerDefect())
+                    : "None";
             String remarks = dvirDataViewDto.get(0).getNotes();
             String odometer = dvirDataViewDto.size() > 0 ? String.valueOf(dvirDataViewDto.get(0).getOdometer()) : "0";
-            String engineHour = dvirDataViewDto.size() > 0 ? String.valueOf(dvirDataViewDto.get(0).getEngineHour()) : "0";
+            String engineHour = dvirDataViewDto.size() > 0 ? String.valueOf(dvirDataViewDto.get(0).getEngineHour())
+                    : "0";
             String signaturePath = dvirDataViewDto.get(0).getDriverSignFile();
             PdfPTable mainTable = new PdfPTable(2);
             mainTable.setWidthPercentage(100.0F);
@@ -1922,7 +2579,8 @@ public class DispatchServiceImpl implements DispatchService {
             mainTable.addCell(remarksData);
             document.add(mainTable);
             document.add(Chunk.NEWLINE);
-            document.add(new Paragraph("Signed by the driver " + new SimpleDateFormat("yyyy-MM-dd").format(new Date()), dataFont));
+            document.add(new Paragraph("Signed by the driver " + new SimpleDateFormat("yyyy-MM-dd").format(new Date()),
+                    dataFont));
             document.add(Chunk.NEWLINE);
             if (signaturePath != null) {
                 try {
@@ -1972,7 +2630,8 @@ public class DispatchServiceImpl implements DispatchService {
             ClientMaster clientInfo = this.clientMasterRepo.findByClientId((int) empInfo.getClientId());
             String driverName = empInfo.getFirstName() + " " + empInfo.getLastName();
             String companyName = clientInfo.getClientName();
-            MainTerminalMaster mainTerminal = this.mainTerminalMasterRepo.findByMainTerminalId((int) empInfo.getMainTerminalId());
+            MainTerminalMaster mainTerminal = this.mainTerminalMasterRepo
+                    .findByMainTerminalId((int) empInfo.getMainTerminalId());
             String timeZone = "";
             if (mainTerminal.getStateId() > 0L) {
                 StateMaster stateInfo = this.stateMasterRepo.findByStateId((int) mainTerminal.getStateId());
@@ -1980,7 +2639,8 @@ public class DispatchServiceImpl implements DispatchService {
             }
 
             Map<String, List<DVIRDataCRUDDto>> groupedByDate = dvirDataList.stream()
-                    .collect(Collectors.groupingBy(d -> d.getDateTime().substring(0, 10), LinkedHashMap::new, Collectors.toList()));
+                    .collect(Collectors.groupingBy(d -> d.getDateTime().substring(0, 10), LinkedHashMap::new,
+                            Collectors.toList()));
 
             for (Entry<String, List<DVIRDataCRUDDto>> entry : groupedByDate.entrySet()) {
                 String currentDate = entry.getKey();
@@ -1992,7 +2652,8 @@ public class DispatchServiceImpl implements DispatchService {
                 String location = dvir.getLocation();
                 String trailer = dvir.getTrailer() != null ? String.join(",", dvir.getTrailer()) : "None";
                 String vehicleDefect = dvir.getTruckDefect() != null ? String.join(",", dvir.getTruckDefect()) : "None";
-                String trailerDefect = dvir.getTrailerDefect() != null ? String.join(",", dvir.getTrailerDefect()) : "None";
+                String trailerDefect = dvir.getTrailerDefect() != null ? String.join(",", dvir.getTrailerDefect())
+                        : "None";
                 String remarks = dvir.getNotes() != null ? dvir.getNotes() : "";
                 String odometer = df.format(dvir.getOdometer());
                 String engineHour = df.format(Double.parseDouble(dvir.getEngineHour()));
@@ -2077,7 +2738,8 @@ public class DispatchServiceImpl implements DispatchService {
     }
 
     @Override
-    public ResultWrapper<List<ViewDriverWorkingDayStatus>> ViewDriverWorkingDay(DriveringStatusCRUDDto driveringStatusCRUDDto) {
+    public ResultWrapper<List<ViewDriverWorkingDayStatus>> ViewDriverWorkingDay(
+            DriveringStatusCRUDDto driveringStatusCRUDDto) {
         ResultWrapper<List<ViewDriverWorkingDayStatus>> result = new ResultWrapper<>();
         String sDebug = "";
 
@@ -2096,7 +2758,8 @@ public class DispatchServiceImpl implements DispatchService {
                 String firstDate = "";
                 String lastDate = "";
                 long lDateTime = 0L;
-                List<DriveringStatusViewDto> driveringStatusViewDto = this.lookupDriverStatusDataOperation(from, to, driverId);
+                List<DriveringStatusViewDto> driveringStatusViewDto = this.lookupDriverStatusDataOperation(from, to,
+                        driverId);
                 sDebug = sDebug + ">> Size : " + driveringStatusViewDto.size() + ",";
 
                 for (int i = 0; i < driveringStatusViewDto.size(); ++i) {
@@ -2138,7 +2801,8 @@ public class DispatchServiceImpl implements DispatchService {
     }
 
     @Override
-    public ResultWrapper<List<DriveringStatusViewDto>> ViewDriveringStatus(DriveringStatusCRUDDto driveringStatusCRUDDto, String tokenValid) {
+    public ResultWrapper<List<DriveringStatusViewDto>> ViewDriveringStatus(
+            DriveringStatusCRUDDto driveringStatusCRUDDto, String tokenValid) {
         ResultWrapper<List<DriveringStatusViewDto>> result = new ResultWrapper<>();
         String sDebug = "";
 
@@ -2171,29 +2835,75 @@ public class DispatchServiceImpl implements DispatchService {
                 driveringStatusViewDto.get(i).setToDate(to);
 
                 try {
-                    EmployeeMaster empInfo = this.employeeMasterRepo.findByEmployeeId((int) driveringStatusViewDto.get(i).getDriverId());
-                    driverName = empInfo.getFirstName() + " " + empInfo.getLastName();
+                    EmployeeMaster empInfo = this.employeeMasterRepo
+                            .findByEmployeeId((int) driveringStatusViewDto.get(i).getDriverId());
+                    driverName = (empInfo != null) ? empInfo.getFirstName() + " " + empInfo.getLastName() : "";
                     driveringStatusViewDto.get(i).setDriverName(driverName);
-                    driveringStatusViewDto.get(i).setMobileNo(empInfo.getMobileNo());
-                    driveringStatusViewDto.get(i).setEmail(empInfo.getEmail());
-                    driveringStatusViewDto.get(i).setCompanyDriverId(empInfo.getUsername());
-                    driveringStatusViewDto.get(i).setCdlNo(empInfo.getCdlNo());
-                    CountryMaster countryInfo = this.countryMasterRepo.findByCountryId((int) empInfo.getCdlCountryId());
-                    driveringStatusViewDto.get(i).setCountryName(countryInfo.getCountryName());
-                    StateMaster stateInfo = this.stateMasterRepo.findByStateId((int) empInfo.getCdlStateId());
-                    driveringStatusViewDto.get(i).setStateName(stateInfo.getStateName());
-                    driveringStatusViewDto.get(i).setExempt(empInfo.getExempt());
-                    VehicleMaster vehcileInfo = this.vehicleMasterRepo.findByVehicleId((int) empInfo.getTruckNo());
-                    driveringStatusViewDto.get(i).setTruckNo(vehcileInfo.getVehicleNo());
-                    driveringStatusViewDto.get(i).setVin(vehcileInfo.getVin());
-                    MainTerminalMaster mainTerminal = this.mainTerminalMasterRepo.findByMainTerminalId((int) empInfo.getMainTerminalId());
-                    driveringStatusViewDto.get(i).setMainTerminalName(mainTerminal.getMainTerminalName());
-                    CycleUsa cycleUsa = this.cycleUsaRepo.findByCycleUsaId((int) empInfo.getCycleUsaId());
-                    driveringStatusViewDto.get(i).setCycleUsaName(cycleUsa.getCycleUsaName());
-                    if (empInfo.getClientId() > 0L) {
-                        ClientMaster clientInfo = this.clientMasterRepo.findByClientId((int) empInfo.getClientId());
-                        driveringStatusViewDto.get(i).setCompanyName(clientInfo.getClientName());
-                        driveringStatusViewDto.get(i).setDotNo(clientInfo.getDotNo());
+                    if (empInfo != null) {
+                        driveringStatusViewDto.get(i).setMobileNo(empInfo.getMobileNo());
+                        driveringStatusViewDto.get(i).setEmail(empInfo.getEmail());
+                        driveringStatusViewDto.get(i).setCompanyDriverId(empInfo.getUsername());
+                    }
+                    // CDL Number
+                    String cdlNo = driveringStatusViewDto.get(i).getCdlNo();
+                    if (cdlNo == null || cdlNo.isEmpty()) {
+                        cdlNo = (empInfo != null) ? empInfo.getCdlNo() : "";
+                    }
+                    driveringStatusViewDto.get(i).setCdlNo(cdlNo);
+
+                    // CDL State
+                    Integer cdlStateId = driveringStatusViewDto.get(i).getCdlStateId();
+                    if (cdlStateId == null || cdlStateId <= 0) {
+                        cdlStateId = (empInfo != null) ? (int) empInfo.getCdlStateId() : 0;
+                    }
+                    if (cdlStateId > 0) {
+                        StateMaster stateInfo = this.stateMasterRepo.findByStateId(cdlStateId);
+                        if (stateInfo != null) {
+                            driveringStatusViewDto.get(i).setStateName(stateInfo.getStateName());
+                            driveringStatusViewDto.get(i).setCdlStateCode(stateInfo.getStateCode());
+                            driveringStatusViewDto.get(i).setCdlStateId(cdlStateId);
+                        }
+                    }
+
+                    // CDL Country
+                    Integer cdlCountryId = driveringStatusViewDto.get(i).getCdlCountryId();
+                    if (cdlCountryId == null || cdlCountryId <= 0) {
+                        cdlCountryId = (empInfo != null) ? (int) empInfo.getCdlCountryId() : 0;
+                    }
+                    if (cdlCountryId > 0) {
+                        CountryMaster countryInfo = this.countryMasterRepo.findByCountryId(cdlCountryId);
+                        if (countryInfo != null) {
+                            driveringStatusViewDto.get(i).setCountryName(countryInfo.getCountryName());
+                            driveringStatusViewDto.get(i).setCdlCountryId(cdlCountryId);
+                        }
+                    }
+                    driveringStatusViewDto.get(i).setExempt(empInfo != null ? empInfo.getExempt() : "");
+
+                    if (empInfo != null) {
+                        VehicleMaster vehcileInfo = this.vehicleMasterRepo.findByVehicleId((int) empInfo.getTruckNo());
+                        if (vehcileInfo != null) {
+                            driveringStatusViewDto.get(i).setTruckNo(vehcileInfo.getVehicleNo());
+                            driveringStatusViewDto.get(i).setVin(vehcileInfo.getVin());
+                        } else {
+                            driveringStatusViewDto.get(i).setTruckNo("");
+                            driveringStatusViewDto.get(i).setVin("");
+                        }
+                        MainTerminalMaster mainTerminal = this.mainTerminalMasterRepo
+                                .findByMainTerminalId((int) empInfo.getMainTerminalId());
+                        if (mainTerminal != null) {
+                            driveringStatusViewDto.get(i).setMainTerminalName(mainTerminal.getMainTerminalName());
+                        }
+                        CycleUsa cycleUsa = this.cycleUsaRepo.findByCycleUsaId((int) empInfo.getCycleUsaId());
+                        if (cycleUsa != null) {
+                            driveringStatusViewDto.get(i).setCycleUsaName(cycleUsa.getCycleUsaName());
+                        }
+                        if (empInfo.getClientId() > 0L) {
+                            ClientMaster clientInfo = this.clientMasterRepo.findByClientId((int) empInfo.getClientId());
+                            if (clientInfo != null) {
+                                driveringStatusViewDto.get(i).setCompanyName(clientInfo.getClientName());
+                                driveringStatusViewDto.get(i).setDotNo(clientInfo.getDotNo());
+                            }
+                        }
                     }
 
                     String[] sDate = driveringStatusViewDto.get(i).getDateTime().split(" ");
@@ -2202,12 +2912,14 @@ public class DispatchServiceImpl implements DispatchService {
                     LocalDateTime ldtEndOfDay = LocalDateTime.of(lDate, LocalTime.MAX);
                     long dFrom = ldtStartOfDay.atZone(ZoneId.systemDefault()).toInstant().toEpochMilli();
                     long dTo = ldtEndOfDay.atZone(ZoneId.systemDefault()).toInstant().toEpochMilli();
-                    List<CertifiedLogViewDto> certifiedLogViewDto = this.lookupCertifiedLogDataOperation(dFrom, dTo, driveringStatusViewDto.get(i).getDriverId());
+                    List<CertifiedLogViewDto> certifiedLogViewDto = this.lookupCertifiedLogDataOperation(dFrom, dTo,
+                            driveringStatusViewDto.get(i).getDriverId());
                     sDebug = sDebug + " << " + certifiedLogViewDto + ",";
 
                     for (int c = 0; c < certifiedLogViewDto.size(); ++c) {
                         if (certifiedLogViewDto.get(c).getCoDriverId() > 0L) {
-                            empInfo = this.employeeMasterRepo.findByEmployeeId((int) certifiedLogViewDto.get(c).getCoDriverId());
+                            empInfo = this.employeeMasterRepo
+                                    .findByEmployeeId((int) certifiedLogViewDto.get(c).getCoDriverId());
                             driveringStatusViewDto.get(i).setCompanyCoDriverId(empInfo.getUsername());
                             driverName = empInfo.getFirstName() + " " + empInfo.getLastName();
                             driveringStatusViewDto.get(i).setCoDriverName(driverName);
@@ -2252,7 +2964,8 @@ public class DispatchServiceImpl implements DispatchService {
             }
 
             if (email != null && !email.trim().isEmpty()) {
-                for (Map<String, Object> valueMap : this.dispatchServiceImpl.callReportCreateMethods(driverId, from, to, "driver_log", driverName)) {
+                for (Map<String, Object> valueMap : this.dispatchServiceImpl.callReportCreateMethods(driverId, from, to,
+                        "driver_log", driverName)) {
                     System.out.println(">>>SendEmail: [" + valueMap.size() + "]" + LocalDateTime.now());
                     if (valueMap.size() > 0) {
                         ByteArrayOutputStream outputStream = (ByteArrayOutputStream) valueMap.get("outputStream");
@@ -2313,7 +3026,8 @@ public class DispatchServiceImpl implements DispatchService {
             long from = ldtFromDate.atZone(ZoneId.systemDefault()).toInstant().toEpochMilli();
             LocalDateTime ldtToDate = LocalDateTime.parse(toDate, formatter);
             long to = ldtToDate.atZone(ZoneId.systemDefault()).toInstant().toEpochMilli();
-            List<DriveringStatus> driverStatusData = this.driveringStatusRepo.findAndViewDriverStatusData(lastDriverId, from, to);
+            List<DriveringStatus> driverStatusData = this.driveringStatusRepo.findAndViewDriverStatusData(lastDriverId,
+                    from, to);
             sDebug = sDebug + " Size : " + driverStatusData.size() + ",";
             DriveringStatus driveringStatus = null;
 
@@ -2322,6 +3036,8 @@ public class DispatchServiceImpl implements DispatchService {
                 driveringStatus.setDriverId(driverId);
                 driveringStatus.setIsVisible(1);
                 this.driveringStatusRepo.save(driveringStatus);
+                this.invalidateCertifiedLogForDate(driverId, driveringStatus.getUtcDateTime());
+                this.invalidateCertifiedLogForDate(lastDriverId, driveringStatus.getUtcDateTime());
             }
 
             result.setResult("Shift Data");
@@ -2336,7 +3052,8 @@ public class DispatchServiceImpl implements DispatchService {
     }
 
     @Override
-    public ResultWrapper<List<DriveringStatusViewDto>> ViewDriveringStatusForLog(DriveringStatusCRUDDto driveringStatusCRUDDto) {
+    public ResultWrapper<List<DriveringStatusViewDto>> ViewDriveringStatusForLog(
+            DriveringStatusCRUDDto driveringStatusCRUDDto) {
         ResultWrapper<List<DriveringStatusViewDto>> result = new ResultWrapper<>();
         String sDebug = "";
 
@@ -2366,25 +3083,70 @@ public class DispatchServiceImpl implements DispatchService {
                 driveringStatusViewDto.get(i).setToDate(to);
 
                 try {
-                    EmployeeMaster empInfo = this.employeeMasterRepo.findByEmployeeId((int) driveringStatusViewDto.get(i).getDriverId());
+                    EmployeeMaster empInfo = this.employeeMasterRepo
+                            .findByEmployeeId((int) driveringStatusViewDto.get(i).getDriverId());
                     driverName = empInfo.getFirstName() + " " + empInfo.getLastName();
                     driveringStatusViewDto.get(i).setDriverName(driverName);
                     driveringStatusViewDto.get(i).setMobileNo(empInfo.getMobileNo());
                     driveringStatusViewDto.get(i).setEmail(empInfo.getEmail());
                     driveringStatusViewDto.get(i).setCompanyDriverId(empInfo.getUsername());
-                    driveringStatusViewDto.get(i).setCdlNo(empInfo.getCdlNo());
-                    CountryMaster countryInfo = this.countryMasterRepo.findByCountryId((int) empInfo.getCdlCountryId());
-                    driveringStatusViewDto.get(i).setCountryName(countryInfo.getCountryName());
-                    StateMaster stateInfo = this.stateMasterRepo.findByStateId((int) empInfo.getCdlStateId());
-                    driveringStatusViewDto.get(i).setStateName(stateInfo.getStateName());
+                    if (driveringStatusViewDto.get(i).getCdlNo() != null
+                            && !driveringStatusViewDto.get(i).getCdlNo().isEmpty()) {
+                        if (driveringStatusViewDto.get(i).getCdlStateId() != null
+                                && driveringStatusViewDto.get(i).getCdlStateId() > 0) {
+                            StateMaster stateInfo = this.stateMasterRepo
+                                    .findByStateId(driveringStatusViewDto.get(i).getCdlStateId());
+                            if (stateInfo != null) {
+                                driveringStatusViewDto.get(i).setStateName(stateInfo.getStateName());
+                                driveringStatusViewDto.get(i).setCdlStateCode(stateInfo.getStateCode());
+                            }
+                        } else if (empInfo != null && empInfo.getCdlStateId() > 0L) {
+                            StateMaster stateInfo = this.stateMasterRepo.findByStateId((int) empInfo.getCdlStateId());
+                            if (stateInfo != null) {
+                                driveringStatusViewDto.get(i).setStateName(stateInfo.getStateName());
+                                driveringStatusViewDto.get(i).setCdlStateCode(stateInfo.getStateCode());
+                            }
+                        }
+                        if (driveringStatusViewDto.get(i).getCdlCountryId() != null
+                                && driveringStatusViewDto.get(i).getCdlCountryId() > 0) {
+                            CountryMaster countryInfo = this.countryMasterRepo
+                                    .findByCountryId(driveringStatusViewDto.get(i).getCdlCountryId());
+                            if (countryInfo != null) {
+                                driveringStatusViewDto.get(i).setCountryName(countryInfo.getCountryName());
+                            }
+                        } else if (empInfo != null && empInfo.getCdlCountryId() > 0L) {
+                            CountryMaster countryInfo = this.countryMasterRepo
+                                    .findByCountryId((int) empInfo.getCdlCountryId());
+                            if (countryInfo != null) {
+                                driveringStatusViewDto.get(i).setCountryName(countryInfo.getCountryName());
+                            }
+                        }
+                    } else if (empInfo != null) {
+                        driveringStatusViewDto.get(i).setCdlNo(empInfo.getCdlNo());
+                        if (empInfo.getCdlCountryId() > 0L) {
+                            CountryMaster countryInfo = this.countryMasterRepo
+                                    .findByCountryId((int) empInfo.getCdlCountryId());
+                            if (countryInfo != null) {
+                                driveringStatusViewDto.get(i).setCountryName(countryInfo.getCountryName());
+                            }
+                        }
+                        if (empInfo.getCdlStateId() > 0L) {
+                            StateMaster stateInfo = this.stateMasterRepo.findByStateId((int) empInfo.getCdlStateId());
+                            if (stateInfo != null) {
+                                driveringStatusViewDto.get(i).setStateName(stateInfo.getStateName());
+                                driveringStatusViewDto.get(i).setCdlStateCode(stateInfo.getStateCode());
+                            }
+                        }
+                    }
                     driveringStatusViewDto.get(i).setExempt(empInfo.getExempt());
                     VehicleMaster vehcileInfo = this.vehicleMasterRepo.findByVehicleId((int) empInfo.getTruckNo());
                     driveringStatusViewDto.get(i).setTruckNo(vehcileInfo.getVehicleNo());
                     driveringStatusViewDto.get(i).setVin(vehcileInfo.getVin());
-                    MainTerminalMaster mainTerminal = this.mainTerminalMasterRepo.findByMainTerminalId((int) empInfo.getMainTerminalId());
+                    MainTerminalMaster mainTerminal = this.mainTerminalMasterRepo
+                            .findByMainTerminalId((int) empInfo.getMainTerminalId());
                     driveringStatusViewDto.get(i).setMainTerminalName(mainTerminal.getMainTerminalName());
                     if (mainTerminal.getStateId() > 0L) {
-                        stateInfo = this.stateMasterRepo.findByStateId((int) mainTerminal.getStateId());
+                        StateMaster stateInfo = this.stateMasterRepo.findByStateId((int) mainTerminal.getStateId());
                         driveringStatusViewDto.get(i).setTimezoneName(stateInfo.getTimeZone());
                         driveringStatusViewDto.get(i).setTimezoneOffSet(stateInfo.getTimezoneOffSet());
                     }
@@ -2398,17 +3160,20 @@ public class DispatchServiceImpl implements DispatchService {
                     }
 
                     LocalDateTime localDateTime = LocalDateTime.ofInstant(
-                            Instant.ofEpochMilli(driveringStatusViewDto.get(i).getUtcDateTime()), TimeZone.getDefault().toZoneId()
-                    );
+                            Instant.ofEpochMilli(driveringStatusViewDto.get(i).getUtcDateTime()),
+                            TimeZone.getDefault().toZoneId());
                     LocalDateTime fromDate1 = localDateTime.withHour(0).withMinute(0).withSecond(0).withNano(0);
-                    LocalDateTime toDate1 = localDateTime.withHour(23).withMinute(59).withSecond(59).withNano(999000000);
+                    LocalDateTime toDate1 = localDateTime.withHour(23).withMinute(59).withSecond(59)
+                            .withNano(999000000);
                     long fromTimestamp = fromDate1.atZone(ZoneId.systemDefault()).toInstant().toEpochMilli();
                     long toTimestamp = toDate1.atZone(ZoneId.systemDefault()).toInstant().toEpochMilli();
-                    List<CertifiedLogViewDto> certifiedLogViewDto = this.lookupCertifiedLogDataOperation(fromTimestamp, toTimestamp, driverId);
+                    List<CertifiedLogViewDto> certifiedLogViewDto = this.lookupCertifiedLogDataOperation(fromTimestamp,
+                            toTimestamp, driverId);
 
                     for (int c = 0; c < certifiedLogViewDto.size(); ++c) {
                         if (certifiedLogViewDto.get(c).getCoDriverId() > 0L) {
-                            empInfo = this.employeeMasterRepo.findByEmployeeId((int) certifiedLogViewDto.get(c).getCoDriverId());
+                            empInfo = this.employeeMasterRepo
+                                    .findByEmployeeId((int) certifiedLogViewDto.get(c).getCoDriverId());
                             driveringStatusViewDto.get(i).setCompanyCoDriverId(empInfo.getUsername());
                             driverName = empInfo.getFirstName() + " " + empInfo.getLastName();
                             driveringStatusViewDto.get(i).setCoDriverName(driverName);
@@ -2463,10 +3228,12 @@ public class DispatchServiceImpl implements DispatchService {
         return result;
     }
 
-    public List<DriveringStatusViewDto> lookupDriverStatusDataByClientOperation(long from, long to, long driverId, long clientId) {
+    public List<DriveringStatusViewDto> lookupDriverStatusDataByClientOperation(long from, long to, long driverId,
+            long clientId) {
         MatchOperation filter = null;
         if (driverId > 0L) {
-            filter = Aggregation.match(Criteria.where("utcDateTime").gte(from).lte(to).and("driverId").is(driverId).and("clientId").is(clientId));
+            filter = Aggregation.match(Criteria.where("utcDateTime").gte(from).lte(to).and("driverId").is(driverId)
+                    .and("clientId").is(clientId));
         } else {
             filter = Aggregation.match(Criteria.where("utcDateTime").gte(from).lte(to).and("clientId").is(clientId));
         }
@@ -2500,17 +3267,18 @@ public class DispatchServiceImpl implements DispatchService {
                     "remainingDutyTime",
                     "remainingDriveTime",
                     "isReportGenerated"
-                }
-        )
+                })
                 .andExclude(new String[]{"_id"});
         Aggregation aggregation = Aggregation.newAggregation(
-                new AggregationOperation[]{filter, projectStage, Aggregation.sort(Direction.DESC, new String[]{"utcDateTime"})}
-        );
-        return this.mongoTemplate.aggregate(aggregation, "drivering_status", DriveringStatusViewDto.class).getMappedResults();
+                new AggregationOperation[]{filter, projectStage,
+                    Aggregation.sort(Direction.DESC, new String[]{"utcDateTime"})});
+        return this.mongoTemplate.aggregate(aggregation, "drivering_status", DriveringStatusViewDto.class)
+                .getMappedResults();
     }
 
     @Override
-    public ResultWrapper<EmployeeMasterCRUDDto> ViewDriveringStatusWithLoginDetails(DriveringStatusCRUDDto driveringStatusCRUDDto, String tokenValid) {
+    public ResultWrapper<EmployeeMasterCRUDDto> ViewDriveringStatusWithLoginDetails(
+            DriveringStatusCRUDDto driveringStatusCRUDDto, String tokenValid) {
         String sDebug = "";
         ResultWrapper<EmployeeMasterCRUDDto> result = new ResultWrapper<>();
 
@@ -2544,7 +3312,8 @@ public class DispatchServiceImpl implements DispatchService {
                     MACAddressMaster macAddressData = this.macAddressMasterRepo.findByMACAddressMasterId(driverId);
                     empInfo.setMacAddress(macAddressData.getMacAddress());
                     empInfo.setVehicleId(macAddressData.getVehicleId());
-                    VehicleMaster vehcileInfo = this.vehicleMasterRepo.findByVehicleId((int) macAddressData.getVehicleId());
+                    VehicleMaster vehcileInfo = this.vehicleMasterRepo
+                            .findByVehicleId((int) macAddressData.getVehicleId());
                     empInfo.setVehicleNo(vehcileInfo.getVehicleNo());
                     if (empInfo.getClientId() > 0L) {
                         ClientMaster client = this.clientMasterRepo.findByClientId((int) empInfo.getClientId());
@@ -2567,32 +3336,63 @@ public class DispatchServiceImpl implements DispatchService {
                 long to = ldtToDate.atZone(ZoneId.systemDefault()).toInstant().toEpochMilli();
                 String driverName = "";
                 String url = "https://admin.gbt-usa.com/uploads/certified_signature/";
-                List<DriveringStatusViewDto> driveringStatusViewDto = this.lookupDriverStatusDataOperation(from, to, driverId);
+                List<DriveringStatusViewDto> driveringStatusViewDto = this.lookupDriverStatusDataOperation(from, to,
+                        driverId);
 
                 for (int i = 0; i < driveringStatusViewDto.size(); ++i) {
                     driveringStatusViewDto.get(i).setFromDate(from);
                     driveringStatusViewDto.get(i).setToDate(to);
 
                     try {
-                        EmployeeMaster empDetails = this.employeeMasterRepo.findByEmployeeId((int) driveringStatusViewDto.get(i).getDriverId());
+                        EmployeeMaster empDetails = this.employeeMasterRepo
+                                .findByEmployeeId((int) driveringStatusViewDto.get(i).getDriverId());
                         driverName = empDetails.getFirstName() + " " + empDetails.getLastName();
                         driveringStatusViewDto.get(i).setDriverName(driverName);
                         driveringStatusViewDto.get(i).setMobileNo(empDetails.getMobileNo());
                         driveringStatusViewDto.get(i).setEmail(empDetails.getEmail());
                         driveringStatusViewDto.get(i).setCompanyDriverId(empDetails.getUsername());
-                        driveringStatusViewDto.get(i).setCdlNo(empDetails.getCdlNo());
-                        CountryMaster countryInfo = this.countryMasterRepo.findByCountryId((int) empDetails.getCdlCountryId());
-                        driveringStatusViewDto.get(i).setCountryName(countryInfo.getCountryName());
-                        StateMaster stateInfo = this.stateMasterRepo.findByStateId((int) empDetails.getCdlStateId());
-                        driveringStatusViewDto.get(i).setStateName(stateInfo.getStateName());
+                        if (driveringStatusViewDto.get(i).getCdlNo() == null
+                                || driveringStatusViewDto.get(i).getCdlNo().isEmpty()) {
+                            driveringStatusViewDto.get(i).setCdlNo(empDetails.getCdlNo());
+                        }
+                        if (driveringStatusViewDto.get(i).getCdlCountryId() == null
+                                || driveringStatusViewDto.get(i).getCdlCountryId() <= 0) {
+                            CountryMaster countryInfo = this.countryMasterRepo
+                                    .findByCountryId((int) empDetails.getCdlCountryId());
+                            if (countryInfo != null) {
+                                driveringStatusViewDto.get(i).setCountryName(countryInfo.getCountryName());
+                            }
+                        } else {
+                            CountryMaster countryInfo = this.countryMasterRepo
+                                    .findByCountryId(driveringStatusViewDto.get(i).getCdlCountryId());
+                            if (countryInfo != null) {
+                                driveringStatusViewDto.get(i).setCountryName(countryInfo.getCountryName());
+                            }
+                        }
+                        if (driveringStatusViewDto.get(i).getCdlStateId() == null
+                                || driveringStatusViewDto.get(i).getCdlStateId() <= 0) {
+                            StateMaster stateInfo = this.stateMasterRepo
+                                    .findByStateId((int) empDetails.getCdlStateId());
+                            if (stateInfo != null) {
+                                driveringStatusViewDto.get(i).setStateName(stateInfo.getStateName());
+                            }
+                        } else {
+                            StateMaster stateInfo = this.stateMasterRepo
+                                    .findByStateId(driveringStatusViewDto.get(i).getCdlStateId());
+                            if (stateInfo != null) {
+                                driveringStatusViewDto.get(i).setStateName(stateInfo.getStateName());
+                            }
+                        }
                         driveringStatusViewDto.get(i).setExempt(empDetails.getExempt());
-                        VehicleMaster vehcileInfo = this.vehicleMasterRepo.findByVehicleId((int) empDetails.getTruckNo());
+                        VehicleMaster vehcileInfo = this.vehicleMasterRepo
+                                .findByVehicleId((int) empDetails.getTruckNo());
                         driveringStatusViewDto.get(i).setTruckNo(vehcileInfo.getVehicleNo());
                         driveringStatusViewDto.get(i).setVin(vehcileInfo.getVin());
-                        MainTerminalMaster mainTerminal = this.mainTerminalMasterRepo.findByMainTerminalId((int) empDetails.getMainTerminalId());
+                        MainTerminalMaster mainTerminal = this.mainTerminalMasterRepo
+                                .findByMainTerminalId((int) empDetails.getMainTerminalId());
                         driveringStatusViewDto.get(i).setMainTerminalName(mainTerminal.getMainTerminalName());
                         if (mainTerminal.getStateId() > 0L) {
-                            stateInfo = this.stateMasterRepo.findByStateId((int) mainTerminal.getStateId());
+                            StateMaster stateInfo = this.stateMasterRepo.findByStateId((int) mainTerminal.getStateId());
                             timezoneName = stateInfo.getTimeZone();
                             timezoneOffSet = stateInfo.getTimezoneOffSet();
                         }
@@ -2600,20 +3400,24 @@ public class DispatchServiceImpl implements DispatchService {
                         CycleUsa cycleUsa = this.cycleUsaRepo.findByCycleUsaId((int) empDetails.getCycleUsaId());
                         driveringStatusViewDto.get(i).setCycleUsaName(cycleUsa.getCycleUsaName());
                         if (empDetails.getClientId() > 0L) {
-                            ClientMaster clientInfo = this.clientMasterRepo.findByClientId((int) empDetails.getClientId());
+                            ClientMaster clientInfo = this.clientMasterRepo
+                                    .findByClientId((int) empDetails.getClientId());
                             driveringStatusViewDto.get(i).setCompanyName(clientInfo.getClientName());
                             driveringStatusViewDto.get(i).setDotNo(clientInfo.getDotNo());
                         }
 
-                        List<CertifiedLogViewDto> certifiedLogViewDto = this.lookupCertifiedLogDataOperation(from, to, driverId);
+                        List<CertifiedLogViewDto> certifiedLogViewDto = this.lookupCertifiedLogDataOperation(from, to,
+                                driverId);
                         if (certifiedLogViewDto.size() > 0) {
                             for (int c = 0; c < certifiedLogViewDto.size(); ++c) {
-                                empDetails = this.employeeMasterRepo.findByEmployeeId((int) certifiedLogViewDto.get(c).getCoDriverId());
+                                empDetails = this.employeeMasterRepo
+                                        .findByEmployeeId((int) certifiedLogViewDto.get(c).getCoDriverId());
                                 driveringStatusViewDto.get(i).setCompanyCoDriverId(empDetails.getUsername());
                                 driverName = empDetails.getFirstName() + " " + empDetails.getLastName();
                                 driveringStatusViewDto.get(i).setCoDriverName(driverName);
                                 driveringStatusViewDto.get(i).setTrailers(certifiedLogViewDto.get(c).getTrailers());
-                                driveringStatusViewDto.get(i).setShippingDocs(certifiedLogViewDto.get(c).getShippingDocs());
+                                driveringStatusViewDto.get(i)
+                                        .setShippingDocs(certifiedLogViewDto.get(c).getShippingDocs());
                                 String setImagePath1 = url.concat(certifiedLogViewDto.get(i).getCertifiedSignature());
                                 driveringStatusViewDto.get(i).setCertifiedSignature(setImagePath1);
                             }
@@ -2640,14 +3444,22 @@ public class DispatchServiceImpl implements DispatchService {
                 cycleTimeRules.setContinueDriveTime(cycleUsaData.getContinueDriveTime() * hourToSec);
                 cycleTimeRules.setBreakTime(cycleUsaData.getBreakTime() * minToSec);
                 cycleTimeRules.setCycleRestartTime(cycleUsaData.getCycleRestartTime() * hourToSec);
-                cycleTimeRules.setWarningOnDutyTime1(cycleUsaData.getOnDutyTime() * hourToSec - cycleUsaData.getWarningTime1() * minToSec);
-                cycleTimeRules.setWarningOnDutyTime2(cycleUsaData.getOnDutyTime() * hourToSec - cycleUsaData.getWarningTime2() * minToSec);
-                cycleTimeRules.setWarningOnDriveTime1(cycleUsaData.getOnDriveTime() * hourToSec - cycleUsaData.getWarningTime1() * minToSec);
-                cycleTimeRules.setWarningOnDriveTime2(cycleUsaData.getOnDriveTime() * hourToSec - cycleUsaData.getWarningTime2() * minToSec);
-                cycleTimeRules.setWarningBreakTime1(cycleUsaData.getContinueDriveTime() * hourToSec - cycleUsaData.getWarningTime1() * minToSec);
-                cycleTimeRules.setWarningBreakTime2(cycleUsaData.getContinueDriveTime() * hourToSec - cycleUsaData.getWarningTime1() * minToSec);
-                cycleTimeRules.setCycleWarningTime1(cycleUsaData.getCycleHour() * hourToSec - cycleUsaData.getCycleWarningTime1() * minToSec);
-                cycleTimeRules.setCycleWarningTime2(cycleUsaData.getCycleHour() * hourToSec - cycleUsaData.getCycleWarningTime2() * minToSec);
+                cycleTimeRules.setWarningOnDutyTime1(
+                        cycleUsaData.getOnDutyTime() * hourToSec - cycleUsaData.getWarningTime1() * minToSec);
+                cycleTimeRules.setWarningOnDutyTime2(
+                        cycleUsaData.getOnDutyTime() * hourToSec - cycleUsaData.getWarningTime2() * minToSec);
+                cycleTimeRules.setWarningOnDriveTime1(
+                        cycleUsaData.getOnDriveTime() * hourToSec - cycleUsaData.getWarningTime1() * minToSec);
+                cycleTimeRules.setWarningOnDriveTime2(
+                        cycleUsaData.getOnDriveTime() * hourToSec - cycleUsaData.getWarningTime2() * minToSec);
+                cycleTimeRules.setWarningBreakTime1(
+                        cycleUsaData.getContinueDriveTime() * hourToSec - cycleUsaData.getWarningTime1() * minToSec);
+                cycleTimeRules.setWarningBreakTime2(
+                        cycleUsaData.getContinueDriveTime() * hourToSec - cycleUsaData.getWarningTime1() * minToSec);
+                cycleTimeRules.setCycleWarningTime1(
+                        cycleUsaData.getCycleHour() * hourToSec - cycleUsaData.getCycleWarningTime1() * minToSec);
+                cycleTimeRules.setCycleWarningTime2(
+                        cycleUsaData.getCycleHour() * hourToSec - cycleUsaData.getCycleWarningTime2() * minToSec);
                 cycleTimeRulesViewDto.add(cycleTimeRules);
                 empInfo.setDriverLog(driveringStatusViewDto);
                 empInfo.setRules(cycleTimeRulesViewDto);
@@ -2670,7 +3482,8 @@ public class DispatchServiceImpl implements DispatchService {
     }
 
     @Override
-    public ResultWrapper<List<DriveringStatusLogViewDto>> ViewDriveringStatusLog(DriveringStatusCRUDDto driveringStatusCRUDDto) {
+    public ResultWrapper<List<DriveringStatusLogViewDto>> ViewDriveringStatusLog(
+            DriveringStatusCRUDDto driveringStatusCRUDDto) {
         ResultWrapper<List<DriveringStatusLogViewDto>> result = new ResultWrapper<>();
         String sDebug = "";
 
@@ -2697,20 +3510,23 @@ public class DispatchServiceImpl implements DispatchService {
                 for (int i = 0; i < loginLog.size(); ++i) {
                     try {
                         if (loginLog.get(i).getLoginDateTime() > 0L) {
-                            DriverStatusLog dsLog = this.driverStatusLogRepo.findAndViewDriverStatusLogById1(loginLog.get(i).get_id(), "Login");
-                            Pageable pageableRequest1 = PageRequest.of(0, 1, Sort.by(new String[]{"utcDateTime"}).descending());
+                            DriverStatusLog dsLog = this.driverStatusLogRepo
+                                    .findAndViewDriverStatusLogById1(loginLog.get(i).get_id(), "Login");
+                            Pageable pageableRequest1 = PageRequest.of(0, 1,
+                                    Sort.by(new String[]{"utcDateTime"}).descending());
                             Query query1 = new Query(
-                                    Criteria.where("driverId").is(driverId).and("utcDateTime").lte(loginLog.get(i).getLoginDateTime()).and("isVoilation").is(0)
-                            );
+                                    Criteria.where("driverId").is(driverId).and("utcDateTime")
+                                            .lte(loginLog.get(i).getLoginDateTime()).and("isVoilation").is(0));
                             query1.limit(1);
                             query1.with(pageableRequest1);
                             List<DriveringStatusViewDto> driveringStatusViewDtoData = this.mongoTemplate
                                     .find(query1, DriveringStatusViewDto.class, "drivering_status");
                             if (driveringStatusViewDtoData.size() > 0) {
-                                if (driveringStatusViewDtoData.get(0).getIsActive() == 1) {
-                                    employeeStatus = "Active";
+                                Integer actVal = driveringStatusViewDtoData.get(0).getIsActive();
+                                if (actVal != null && (actVal == 0 || actVal == 2)) {
+                                    employeeStatus = "active";
                                 } else {
-                                    employeeStatus = "Inactive";
+                                    employeeStatus = "inactive";
                                 }
                             }
 
@@ -2723,8 +3539,10 @@ public class DispatchServiceImpl implements DispatchService {
                             driveringStatusLogData.setCustomLocation("");
                             driveringStatusLogData.setOrigin("");
                             if (driveringStatusViewDtoData.size() > 0) {
-                                driveringStatusLogData.setOdometer(Double.parseDouble(df.format(driveringStatusViewDtoData.get(0).getOdometer())));
-                                driveringStatusLogData.setEngineHour(df.format(Double.parseDouble(driveringStatusViewDtoData.get(0).getEngineHour())));
+                                driveringStatusLogData.setOdometer(
+                                        Double.parseDouble(df.format(driveringStatusViewDtoData.get(0).getOdometer())));
+                                driveringStatusLogData.setEngineHour(df
+                                        .format(Double.parseDouble(driveringStatusViewDtoData.get(0).getEngineHour())));
                             } else {
                                 driveringStatusLogData.setOdometer(0.0);
                                 driveringStatusLogData.setEngineHour("0");
@@ -2751,20 +3569,23 @@ public class DispatchServiceImpl implements DispatchService {
                 for (int i = 0; i < loginLog.size(); ++i) {
                     try {
                         if (loginLog.get(i).getLogoutDateTime() > 0L) {
-                            DriverStatusLog dsLog = this.driverStatusLogRepo.findAndViewDriverStatusLogById1(loginLog.get(i).get_id(), "Logout");
-                            Pageable pageableRequest1 = PageRequest.of(0, 1, Sort.by(new String[]{"utcDateTime"}).descending());
+                            DriverStatusLog dsLog = this.driverStatusLogRepo
+                                    .findAndViewDriverStatusLogById1(loginLog.get(i).get_id(), "Logout");
+                            Pageable pageableRequest1 = PageRequest.of(0, 1,
+                                    Sort.by(new String[]{"utcDateTime"}).descending());
                             Query query1 = new Query(
-                                    Criteria.where("driverId").is(driverId).and("utcDateTime").lte(loginLog.get(i).getLogoutDateTime()).and("isVoilation").is(0)
-                            );
+                                    Criteria.where("driverId").is(driverId).and("utcDateTime")
+                                            .lte(loginLog.get(i).getLogoutDateTime()).and("isVoilation").is(0));
                             query1.limit(1);
                             query1.with(pageableRequest1);
                             List<DriveringStatusViewDto> driveringStatusViewDtoData = this.mongoTemplate
                                     .find(query1, DriveringStatusViewDto.class, "drivering_status");
                             if (driveringStatusViewDtoData.size() > 0) {
-                                if (driveringStatusViewDtoData.get(0).getIsActive() == 1) {
-                                    employeeStatus = "Active";
+                                Integer actVal = driveringStatusViewDtoData.get(0).getIsActive();
+                                if (actVal != null && (actVal == 0 || actVal == 2)) {
+                                    employeeStatus = "active";
                                 } else {
-                                    employeeStatus = "Inactive";
+                                    employeeStatus = "inactive";
                                 }
                             }
 
@@ -2777,8 +3598,10 @@ public class DispatchServiceImpl implements DispatchService {
                             driveringStatusLogData.setCustomLocation("");
                             driveringStatusLogData.setOrigin("");
                             if (driveringStatusViewDtoData.size() > 0) {
-                                driveringStatusLogData.setOdometer(Double.parseDouble(df.format(driveringStatusViewDtoData.get(0).getOdometer())));
-                                driveringStatusLogData.setEngineHour(df.format(Double.parseDouble(driveringStatusViewDtoData.get(0).getEngineHour())));
+                                driveringStatusLogData.setOdometer(
+                                        Double.parseDouble(df.format(driveringStatusViewDtoData.get(0).getOdometer())));
+                                driveringStatusLogData.setEngineHour(df
+                                        .format(Double.parseDouble(driveringStatusViewDtoData.get(0).getEngineHour())));
                             } else {
                                 driveringStatusLogData.setOdometer(0.0);
                                 driveringStatusLogData.setEngineHour("0");
@@ -2802,10 +3625,12 @@ public class DispatchServiceImpl implements DispatchService {
 
                 List<DriveringStatusViewDto> driveringStatusViewDto = new ArrayList<>();
                 Pageable pageableRequest = PageRequest.of(0, 1, Sort.by(new String[]{"utcDateTime"}).descending());
-                Query query = new Query(Criteria.where("driverId").is(driverId).and("utcDateTime").lte(from).and("isVoilation").is(0).and("isVisible").is(1));
+                Query query = new Query(Criteria.where("driverId").is(driverId).and("utcDateTime").lte(from)
+                        .and("isVoilation").is(0).and("isVisible").is(1));
                 query.limit(1);
                 query.with(pageableRequest);
-                List<DriveringStatusViewDto> driveringStatusViewDtoData = this.mongoTemplate.find(query, DriveringStatusViewDto.class, "drivering_status");
+                List<DriveringStatusViewDto> driveringStatusViewDtoData = this.mongoTemplate.find(query,
+                        DriveringStatusViewDto.class, "drivering_status");
                 if (driveringStatusViewDtoData.size() > 0) {
                     driveringStatusViewDtoData.get(0).setIsPreviousLog(1);
                     driveringStatusLogData.setIsLogDelete(1);
@@ -2823,15 +3648,17 @@ public class DispatchServiceImpl implements DispatchService {
                 for (int i = 0; i < driveringStatusViewDto.size(); ++i) {
                     try {
                         if (driveringStatusViewDto.size() > 0) {
-                            if (driveringStatusViewDto.get(i).getIsActive() == 1) {
-                                employeeStatus = "Active";
+                            Integer actVal = driveringStatusViewDto.get(i).getIsActive();
+                            if (actVal != null && (actVal == 0 || actVal == 2)) {
+                                employeeStatus = "active";
                             } else {
-                                employeeStatus = "Inactive";
+                                employeeStatus = "inactive";
                             }
                         }
 
                         sDebug = sDebug + "1,";
-                        DriverStatusLog dsLog = this.driverStatusLogRepo.findAndViewDriverStatusLogById(driveringStatusViewDto.get(i).get_id());
+                        DriverStatusLog dsLog = this.driverStatusLogRepo
+                                .findAndViewDriverStatusLogById(driveringStatusViewDto.get(i).get_id());
                         sDebug = sDebug + "2,";
                         driveringStatusLogData = new DriveringStatusLogViewDto();
                         driveringStatusLogData.setVehicleId(driveringStatusViewDto.get(i).getVehicleId());
@@ -2839,7 +3666,8 @@ public class DispatchServiceImpl implements DispatchService {
                         driveringStatusLogData.setDriverStatusId(driveringStatusViewDto.get(i).get_id());
                         driveringStatusLogData.setDriverName(driverName);
                         sDebug = sDebug + "3,";
-                        driveringStatusLogData.setDateTime(String.valueOf(driveringStatusViewDto.get(i).getUtcDateTime()));
+                        driveringStatusLogData
+                                .setDateTime(String.valueOf(driveringStatusViewDto.get(i).getUtcDateTime()));
                         driveringStatusLogData.setUtcDateTime(driveringStatusViewDto.get(i).getUtcDateTime());
                         driveringStatusLogData.setStatus(driveringStatusViewDto.get(i).getStatus());
                         sDebug = sDebug + "3-1,";
@@ -2851,11 +3679,13 @@ public class DispatchServiceImpl implements DispatchService {
                         sDebug = sDebug + "3-4,";
                         driveringStatusLogData.setOrigin(driveringStatusViewDto.get(i).getOrigin());
                         sDebug = sDebug + "3-5,";
-                        driveringStatusLogData.setOdometer(Double.parseDouble(df.format(driveringStatusViewDto.get(i).getOdometer())));
+                        driveringStatusLogData.setOdometer(
+                                Double.parseDouble(df.format(driveringStatusViewDto.get(i).getOdometer())));
                         sDebug = sDebug + "3-6,";
 
                         try {
-                            driveringStatusLogData.setEngineHour(df.format(Double.parseDouble(driveringStatusViewDto.get(i).getEngineHour())));
+                            driveringStatusLogData.setEngineHour(
+                                    df.format(Double.parseDouble(driveringStatusViewDto.get(i).getEngineHour())));
                         } catch (Exception var34) {
                             driveringStatusLogData.setEngineHour("0.00");
                             var34.printStackTrace();
@@ -2863,7 +3693,8 @@ public class DispatchServiceImpl implements DispatchService {
 
                         driveringStatusLogData.setNote(driveringStatusViewDto.get(i).getNote());
                         sDebug = sDebug + "3-7,";
-                        driveringStatusLogData.setIsVoilation((long) driveringStatusViewDto.get(i).getIsVoilation().intValue());
+                        driveringStatusLogData
+                                .setIsVoilation((long) driveringStatusViewDto.get(i).getIsVoilation().intValue());
                         driveringStatusLogData.setLogType(driveringStatusViewDto.get(i).getLogType());
                         sDebug = sDebug + "3-8,";
                         driveringStatusLogData.setEmployeeStatus(employeeStatus);
@@ -2875,13 +3706,18 @@ public class DispatchServiceImpl implements DispatchService {
                         }
 
                         sDebug = sDebug + "4,";
-                        driveringStatusLogData.setRemainingWeeklyTime(driveringStatusViewDto.get(i).getRemainingWeeklyTime());
-                        driveringStatusLogData.setRemainingDutyTime(driveringStatusViewDto.get(i).getRemainingDutyTime());
-                        driveringStatusLogData.setRemainingDriveTime(driveringStatusViewDto.get(i).getRemainingDriveTime());
-                        driveringStatusLogData.setRemainingSleepTime(driveringStatusViewDto.get(i).getRemainingSleepTime());
+                        driveringStatusLogData
+                                .setRemainingWeeklyTime(driveringStatusViewDto.get(i).getRemainingWeeklyTime());
+                        driveringStatusLogData
+                                .setRemainingDutyTime(driveringStatusViewDto.get(i).getRemainingDutyTime());
+                        driveringStatusLogData
+                                .setRemainingDriveTime(driveringStatusViewDto.get(i).getRemainingDriveTime());
+                        driveringStatusLogData
+                                .setRemainingSleepTime(driveringStatusViewDto.get(i).getRemainingSleepTime());
                         driveringStatusLogData.setShift(driveringStatusViewDto.get(i).getShift());
                         driveringStatusLogData.setDays(driveringStatusViewDto.get(i).getDays());
-                        driveringStatusLogData.setIsReportGenerated((long) driveringStatusViewDto.get(i).getIsReportGenerated());
+                        driveringStatusLogData
+                                .setIsReportGenerated((long) driveringStatusViewDto.get(i).getIsReportGenerated());
                         driveringStatusLogData.setIsPreviousLog(driveringStatusViewDto.get(i).getIsPreviousLog());
                         driveringStatusLogData.setIsLogDelete(1);
                         driveringStatusLogViewDto.add(driveringStatusLogData);
@@ -2891,33 +3727,40 @@ public class DispatchServiceImpl implements DispatchService {
                     }
                 }
 
-                List<CertifiedLogViewDto> certifiedLogViewDto = this.lookupCertifiedLogDataOperation(from, to, driverId);
+                List<CertifiedLogViewDto> certifiedLogViewDto = this.lookupCertifiedLogDataOperation(from, to,
+                        driverId);
 
                 for (int i = 0; i < certifiedLogViewDto.size(); ++i) {
                     try {
-                        employeeStatus = "Active";
-                        DriverStatusLog dsLog = this.driverStatusLogRepo.findAndViewDriverStatusLogById(certifiedLogViewDto.get(i).get_id());
-                        Pageable pageableRequest1 = PageRequest.of(0, 1, Sort.by(new String[]{"utcDateTime"}).descending());
+                        employeeStatus = "active";
+                        DriverStatusLog dsLog = this.driverStatusLogRepo
+                                .findAndViewDriverStatusLogById(certifiedLogViewDto.get(i).get_id());
+                        Pageable pageableRequest1 = PageRequest.of(0, 1,
+                                Sort.by(new String[]{"utcDateTime"}).descending());
                         Query query1 = new Query(
-                                Criteria.where("driverId").is(driverId).and("utcDateTime").lte(certifiedLogViewDto.get(i).getLCertifiedDate()).and("isVoilation").is(0)
-                        );
+                                Criteria.where("driverId").is(driverId).and("utcDateTime")
+                                        .lte(certifiedLogViewDto.get(i).getLCertifiedDate()).and("isVoilation").is(0));
                         query1.limit(1);
                         query1.with(pageableRequest1);
-                        List<DriveringStatusViewDto> driveringStatusViewDtoData1 = this.mongoTemplate.find(query1, DriveringStatusViewDto.class, "drivering_status");
+                        List<DriveringStatusViewDto> driveringStatusViewDtoData1 = this.mongoTemplate.find(query1,
+                                DriveringStatusViewDto.class, "drivering_status");
                         driveringStatusLogData = new DriveringStatusLogViewDto();
                         driveringStatusLogData.setVehicleId(certifiedLogViewDto.get(i).getVehicleId());
                         driveringStatusLogData.setDriverId(driverId);
                         driveringStatusLogData.setDriverStatusId(certifiedLogViewDto.get(i).get_id());
                         driveringStatusLogData.setDriverName(driverName);
-                        driveringStatusLogData.setDateTime(String.valueOf(certifiedLogViewDto.get(i).getLCertifiedDate()));
+                        driveringStatusLogData
+                                .setDateTime(String.valueOf(certifiedLogViewDto.get(i).getLCertifiedDate()));
                         driveringStatusLogData.setStatus("Certified");
                         driveringStatusLogData.setLattitude(0.0);
                         driveringStatusLogData.setLongitude(0.0);
                         driveringStatusLogData.setCustomLocation("");
                         driveringStatusLogData.setOrigin("");
                         if (driveringStatusViewDtoData1.size() > 0) {
-                            driveringStatusLogData.setOdometer(Double.parseDouble(df.format(driveringStatusViewDtoData1.get(0).getOdometer())));
-                            driveringStatusLogData.setEngineHour(df.format(Double.parseDouble(driveringStatusViewDtoData1.get(0).getEngineHour())));
+                            driveringStatusLogData.setOdometer(
+                                    Double.parseDouble(df.format(driveringStatusViewDtoData1.get(0).getOdometer())));
+                            driveringStatusLogData.setEngineHour(
+                                    df.format(Double.parseDouble(driveringStatusViewDtoData1.get(0).getEngineHour())));
                         } else {
                             driveringStatusLogData.setOdometer(0.0);
                             driveringStatusLogData.setEngineHour("0");
@@ -2936,9 +3779,43 @@ public class DispatchServiceImpl implements DispatchService {
                     }
                 }
 
+                // READ-ONLY VIEW:
+                // statusId has already been loaded from driver_status_log above.
+                // Never calculate or write sequence IDs during page refresh/view.
+                driveringStatusLogViewDto.sort((d1, d2) -> {
+                    long t1 = 0L;
+                    long t2 = 0L;
+
+                    try {
+                        t1 = Long.parseLong(d1.getDateTime());
+                    } catch (Exception ignored) {
+                    }
+
+                    try {
+                        t2 = Long.parseLong(d2.getDateTime());
+                    } catch (Exception ignored) {
+                    }
+
+                    if (t1 != t2) {
+                        return Long.compare(t1, t2);
+                    }
+
+                    String id1 = d1.getDriverStatusId();
+                    String id2 = d2.getDriverStatusId();
+
+                    if (id1 == null) {
+                        id1 = "";
+                    }
+                    if (id2 == null) {
+                        id2 = "";
+                    }
+
+                    return id1.compareTo(id2);
+                });
+
                 result.setResult(driveringStatusLogViewDto);
                 result.setStatus(Result.SUCCESS);
-                result.setMessage("Driver Status Information Send Successfully" + sDebug);
+                result.setMessage("Driver Status Information Send Successfully - FIXED_SEQ_V3" + sDebug);
             } else {
                 result.setResult(null);
                 result.setStatus(Result.FAIL);
@@ -3001,8 +3878,10 @@ public class DispatchServiceImpl implements DispatchService {
                     }
 
                     utcDateTime = logStatusData.get(i).getUtcDateTime();
-                    LocalDateTime dateTime = LocalDateTime.ofInstant(Instant.ofEpochMilli(utcDateTime), ZoneId.systemDefault());
-                    LocalDateTime newDateTime = dateTime.plusDays(15L).withHour(23).withMinute(59).withSecond(59).withNano(0);
+                    LocalDateTime dateTime = LocalDateTime.ofInstant(Instant.ofEpochMilli(utcDateTime),
+                            ZoneId.systemDefault());
+                    LocalDateTime newDateTime = dateTime.plusDays(15L).withHour(23).withMinute(59).withSecond(59)
+                            .withNano(0);
                     plus15DaysTimestamp = newDateTime.atZone(ZoneId.systemDefault()).toInstant().toEpochMilli();
                     lastDriverId = logStatusData.get(i).getDriverId();
                     if (this.isVoilation) {
@@ -3018,16 +3897,20 @@ public class DispatchServiceImpl implements DispatchService {
                         long remainingDriveTime = cycleUsaData.getOnDutyTime() * 60L * 60L;
                         new DriveringStatus();
                         Pageable pageableRequest1 = PageRequest.of(0, 1, Sort.by(new String[]{"_id"}).descending());
-                        Query query1 = new Query(Criteria.where("driverId").is(lastDriverId).and("utcDateTime").lt(utcDateTime));
+                        Query query1 = new Query(
+                                Criteria.where("driverId").is(lastDriverId).and("utcDateTime").lt(utcDateTime));
                         query1.limit(1);
                         query1.with(pageableRequest1);
-                        List<DriveringStatusViewDto> driveringStatusViewDtoData = this.mongoTemplate.find(query1, DriveringStatusViewDto.class, "drivering_status");
-                        LocalDate logDate = Instant.ofEpochMilli(utcDateTime).atZone(ZoneId.systemDefault()).toLocalDate();
+                        List<DriveringStatusViewDto> driveringStatusViewDtoData = this.mongoTemplate.find(query1,
+                                DriveringStatusViewDto.class, "drivering_status");
+                        LocalDate logDate = Instant.ofEpochMilli(utcDateTime).atZone(ZoneId.systemDefault())
+                                .toLocalDate();
                         ZonedDateTime utcDateTime1 = Instant.ofEpochMilli(utcDateTime).atZone(ZoneOffset.UTC);
                         DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
                         String formattedDate = utcDateTime1.format(formatter);
                         if (driveringStatusViewDtoData.size() > 0
-                                && (driveringStatusViewDtoData.get(0).getStatus().equals("OnDuty") || driveringStatusViewDtoData.get(0).getStatus().equals("OnDrive"))) {
+                                && (driveringStatusViewDtoData.get(0).getStatus().equals("OnDuty")
+                                || driveringStatusViewDtoData.get(0).getStatus().equals("OnDrive"))) {
                             DriveringStatus logDays = new DriveringStatus();
                             logDays.setDriverId(lastDriverId);
                             logDays.setVehicleId(driveringStatusViewDtoData.get(0).getVehicleId());
@@ -3052,20 +3935,26 @@ public class DispatchServiceImpl implements DispatchService {
                             logDays.setOdometer(driveringStatusViewDtoData.get(0).getOdometer());
                             logDays.setShift(driveringStatusViewDtoData.get(0).getShift());
                             logDays.setDays(driveringStatusViewDtoData.get(0).getDays());
-                            logDays.setRemainingWeeklyTime(Long.parseLong(driveringStatusViewDtoData.get(0).getRemainingWeeklyTime()));
-                            logDays.setRemainingDutyTime(Long.parseLong(driveringStatusViewDtoData.get(0).getRemainingDutyTime()));
-                            logDays.setRemainingDriveTime(Long.parseLong(driveringStatusViewDtoData.get(0).getRemainingDriveTime()));
-                            logDays.setRemainingSleepTime(Long.parseLong(driveringStatusViewDtoData.get(0).getRemainingSleepTime()));
+                            logDays.setRemainingWeeklyTime(
+                                    Long.parseLong(driveringStatusViewDtoData.get(0).getRemainingWeeklyTime()));
+                            logDays.setRemainingDutyTime(
+                                    Long.parseLong(driveringStatusViewDtoData.get(0).getRemainingDutyTime()));
+                            logDays.setRemainingDriveTime(
+                                    Long.parseLong(driveringStatusViewDtoData.get(0).getRemainingDriveTime()));
+                            logDays.setRemainingSleepTime(
+                                    Long.parseLong(driveringStatusViewDtoData.get(0).getRemainingSleepTime()));
                             logDays.setReceivedTimestamp(instant.toEpochMilli());
                             logDays.setIsVisible(1);
                             this.driveringStatusRepo.save(logDays);
                         }
 
                         Pageable pageableRequest = PageRequest.of(0, 1, Sort.by(new String[]{"_id"}).descending());
-                        Query queryData = new Query(Criteria.where("driverId").is(lastDriverId).and("utcDateTime").lt(utcDateTime).and("isVoilation").is(0));
+                        Query queryData = new Query(Criteria.where("driverId").is(lastDriverId).and("utcDateTime")
+                                .lt(utcDateTime).and("isVoilation").is(0));
                         queryData.limit(1);
                         queryData.with(pageableRequest);
-                        driveringStatus = this.mongoTemplate.find(queryData, DriveringStatusLogViewDto.class, "drivering_status");
+                        driveringStatus = this.mongoTemplate.find(queryData, DriveringStatusLogViewDto.class,
+                                "drivering_status");
                     }
 
                     ++iCount;
@@ -3082,17 +3971,21 @@ public class DispatchServiceImpl implements DispatchService {
                 }
 
                 Pageable pageableRequest = PageRequest.of(0, 1, Sort.by(new String[]{"_id"}).descending());
-                Query queryData = new Query(Criteria.where("driverId").is(driverId).and("utcDateTime").lt(utcDateTime).and("isVoilation").is(0));
+                Query queryData = new Query(Criteria.where("driverId").is(driverId).and("utcDateTime").lt(utcDateTime)
+                        .and("isVoilation").is(0));
                 queryData.limit(1);
                 queryData.with(pageableRequest);
-                List<DriveringStatusLogViewDto> driveringStatusNewDriver = this.mongoTemplate.find(queryData, DriveringStatusLogViewDto.class, "drivering_status");
+                List<DriveringStatusLogViewDto> driveringStatusNewDriver = this.mongoTemplate.find(queryData,
+                        DriveringStatusLogViewDto.class, "drivering_status");
                 if (driveringStatusNewDriver.size() > 0) {
                     lastLogData = driveringStatusNewDriver.get(0);
                 }
 
-                queryData = new Query(Criteria.where("driverId").is(driverId).and("utcDateTime").gt(utcDateTime).lte(plus15DaysTimestamp).and("isVoilation").is(0));
+                queryData = new Query(Criteria.where("driverId").is(driverId).and("utcDateTime").gt(utcDateTime)
+                        .lte(plus15DaysTimestamp).and("isVoilation").is(0));
                 queryData.with(Sort.by(Direction.ASC, new String[]{"utcDateTime"}));
-                List<DriveringStatusLogViewDto> driveringStatusList = this.mongoTemplate.find(queryData, DriveringStatusLogViewDto.class, "drivering_status");
+                List<DriveringStatusLogViewDto> driveringStatusList = this.mongoTemplate.find(queryData,
+                        DriveringStatusLogViewDto.class, "drivering_status");
 
                 for (int i = 0; i < driveringStatusList.size(); ++i) {
                     long duration = driveringStatusList.get(i).getUtcDateTime() - lastLogData.getUtcDateTime();
@@ -3115,10 +4008,11 @@ public class DispatchServiceImpl implements DispatchService {
                 }
 
                 queryData = new Query(
-                        Criteria.where("driverId").is(lastDriverId).and("utcDateTime").gt(utcDateTime).lte(plus15DaysTimestamp).and("isVoilation").is(0)
-                );
+                        Criteria.where("driverId").is(lastDriverId).and("utcDateTime").gt(utcDateTime)
+                                .lte(plus15DaysTimestamp).and("isVoilation").is(0));
                 queryData.with(Sort.by(Direction.ASC, new String[]{"utcDateTime"}));
-                driveringStatusList = this.mongoTemplate.find(queryData, DriveringStatusLogViewDto.class, "drivering_status");
+                driveringStatusList = this.mongoTemplate.find(queryData, DriveringStatusLogViewDto.class,
+                        "drivering_status");
 
                 for (int i = 0; i < driveringStatusList.size(); ++i) {
                     long duration = driveringStatusList.get(i).getUtcDateTime() - lastLogData.getUtcDateTime();
@@ -3143,7 +4037,8 @@ public class DispatchServiceImpl implements DispatchService {
                 if (!this.isVoilation) {
                     for (int i = 0; i < this.shiftLogAddDtoData.size(); ++i) {
                         sDebug = sDebug + "ID : -> " + this.shiftLogAddDtoData.get(i).getLogStatusId() + ",";
-                        Query updateQuery = new Query(Criteria.where("logDataId").is(this.shiftLogAddDtoData.get(i).getLogStatusId()));
+                        Query updateQuery = new Query(
+                                Criteria.where("logDataId").is(this.shiftLogAddDtoData.get(i).getLogStatusId()));
                         Update update = new Update().set("driverId", driverId);
                         this.mongoTemplate.updateMulti(updateQuery, update, DriverStatusLog.class);
                         if (i == 0) {
@@ -3159,7 +4054,8 @@ public class DispatchServiceImpl implements DispatchService {
                             if (checkDvir) {
                                 Pageable var56 = PageRequest.of(0, 1, Sort.by(new String[]{"_id"}).ascending());
                                 Query query1 = new Query();
-                                query1.addCriteria(Criteria.where("lDateTime").gte(from).lte(to).and("driverId").is(lastDriverId));
+                                query1.addCriteria(
+                                        Criteria.where("lDateTime").gte(from).lte(to).and("driverId").is(lastDriverId));
                                 query1.with(var56);
                                 List<DVIRData> dvirData = this.mongoTemplate.find(query1, DVIRData.class, "dvir_data");
                                 if (dvirData.size() > 0) {
@@ -3185,16 +4081,17 @@ public class DispatchServiceImpl implements DispatchService {
                                 this.shiftLogAddDtoData.get(i).getTotalTimeOnDuty(),
                                 this.shiftLogAddDtoData.get(i).getTotalTimeDrive(),
                                 this.shiftLogAddDtoData.get(i).getTotalTimeOnSleep(),
-                                checkCertified
-                        );
+                                checkCertified);
                     }
 
-                    ZonedDateTime currentDateTime = Instant.ofEpochMilli(firstUtcDateTime).atZone(ZoneId.systemDefault());
+                    ZonedDateTime currentDateTime = Instant.ofEpochMilli(firstUtcDateTime)
+                            .atZone(ZoneId.systemDefault());
                     ZonedDateTime startOfDay = currentDateTime.toLocalDate().atStartOfDay(ZoneId.systemDefault());
                     long midnightTimestamp = startOfDay.toInstant().toEpochMilli();
                     ZonedDateTime endOfDay = startOfDay.plusDays(1L).minusNanos(1000000L);
                     long endOfDayTimestamp = endOfDay.toInstant().toEpochMilli();
-                    this.driveringStatusRepo.deleteAllDriveringStatusVoilation(lastDriverId, midnightTimestamp, endOfDayTimestamp, 1);
+                    this.driveringStatusRepo.deleteAllDriveringStatusVoilation(lastDriverId, midnightTimestamp,
+                            endOfDayTimestamp, 1);
                     sDebug = sDebug
                             + " Shift >> From : "
                             + midnightTimestamp
@@ -3208,7 +4105,8 @@ public class DispatchServiceImpl implements DispatchService {
                             + logDays
                             + "\n";
                     this.SaveLog(sDebug);
-                    this.CheckAllVoilations(driverId, midnightTimestamp, endOfDayTimestamp, plus15DaysTimestamp, logShift, logDays);
+                    this.CheckAllVoilations(driverId, midnightTimestamp, endOfDayTimestamp, plus15DaysTimestamp,
+                            logShift, logDays);
                     if (firstLogUtcDateTime > 0L) {
                         this.UpdateDriverSequenceId(driverId, firstLogUtcDateTime);
                     }
@@ -3234,36 +4132,90 @@ public class DispatchServiceImpl implements DispatchService {
         String sDebug = "SEQ ID : ";
 
         try {
-            long baseStatusId = 0L;
-            Query lastLogQuery = new Query(
-                    Criteria.where("driverId").is(driverId).and("dateTime").lt(utcDateTime).and("isVoilation").is(0).and("isVisible").is(1)
-            )
-                    .with(Sort.by(Direction.DESC, new String[]{"dateTime"}))
-                    .limit(1);
-            List<DriverStatusLog> lastLogList = this.mongoTemplate.find(lastLogQuery, DriverStatusLog.class, "driver_status_log");
-            if (!lastLogList.isEmpty()) {
-                baseStatusId = lastLogList.get(0).getStatusId();
+            if (driverId <= 0L || utcDateTime <= 0L) {
+                return;
             }
 
-            sDebug = sDebug + " >> " + baseStatusId + " :: " + utcDateTime + "\n";
-            Query logsToUpdateQuery = new Query(
-                    Criteria.where("driverId").is(driverId).and("dateTime").gte(utcDateTime).and("isVoilation").is(0).and("isVisible").is(1)
-            )
-                    .with(Sort.by(Direction.ASC, new String[]{"dateTime"}));
-            List<DriverStatusLog> logsToUpdate = this.mongoTemplate.find(logsToUpdateQuery, DriverStatusLog.class, "driver_status_log");
+            /*
+             * Sequence rules:
+             * 1. Page/view refresh never calls this method.
+             * 2. Only visible, non-violation logs participate in the sequence.
+             * 3. Login, Logout, Certified and duty-status logs share ONE chronological
+             * sequence.
+             * 4. Do not trust the previous stored statusId as the base because an old bad
+             * Login/Logout ID could propagate the corruption.
+             *
+             * Instead, baseStatusId = number of valid visible logs BEFORE utcDateTime.
+             */
+ /*
+             * Sequence rules:
+             * 1. Page/view refresh never calls this method.
+             * 2. All non-violation logs (both active and inactive) participate in the
+             * sequence,
+             * so that edited (inactive) logs retain their historical sequence ID.
+             * 3. Login, Logout, Certified and duty-status logs share ONE chronological
+             * sequence.
+             * 4. To automatically heal any past corruption (e.g. from 1970 timestamp bugs),
+             * we re-sequence ALL valid logs for the driver from the beginning of time.
+             */
+            long baseStatusId = 0L;
 
-            for (int i = 0; i < logsToUpdate.size(); ++i) {
-                long newStatusId = baseStatusId + (long) i + 1L;
-                DriverStatusLog log = logsToUpdate.get(i);
-                sDebug = sDebug + "status ID: " + newStatusId + " :: " + log.getStatus() + " :: " + log.getLogDataId() + "\n";
-                Query updateQuery = new Query(Criteria.where("logDataId").is(log.getLogDataId()).and("driverId").is(driverId));
-                Update update = new Update().set("statusId", newStatusId);
-                this.mongoTemplate.updateFirst(updateQuery, update, DriverStatusLog.class);
+            Criteria validViolationCriteriaForAffected = new Criteria().orOperator(
+                    Criteria.where("isVoilation").is(0),
+                    Criteria.where("isVoilation").is(null),
+                    Criteria.where("isVoilation").exists(false));
+
+            Query affectedLogsQuery = new Query(
+                    new Criteria().andOperator(
+                            Criteria.where("driverId").is(driverId),
+                            Criteria.where("dateTime").gte(0L),
+                            validViolationCriteriaForAffected));
+            affectedLogsQuery.fields().include("statusId", "logDataId", "driverId");
+
+            affectedLogsQuery.with(
+                    Sort.by(
+                            Sort.Order.asc("dateTime"),
+                            Sort.Order.asc("_id")));
+
+            List<DriverStatusLog> affectedLogs = this.mongoTemplate.find(
+                    affectedLogsQuery,
+                    DriverStatusLog.class,
+                    "driver_status_log");
+
+            for (int i = 0; i < affectedLogs.size(); i++) {
+                DriverStatusLog log = affectedLogs.get(i);
+                long correctStatusId = baseStatusId + i + 1L;
+
+                if (log.getStatusId() == correctStatusId) {
+                    continue;
+                }
+
+                Query updateQuery = new Query(
+                        Criteria.where("logDataId").is(log.getLogDataId())
+                                .and("driverId").is(driverId));
+
+                Update update = new Update();
+                update.set("statusId", correctStatusId);
+
+                this.mongoTemplate.updateFirst(
+                        updateQuery,
+                        update,
+                        DriverStatusLog.class);
+
+                sDebug = sDebug
+                        + "status ID: "
+                        + correctStatusId
+                        + " :: "
+                        + log.getStatus()
+                        + " :: "
+                        + log.getLogDataId()
+                        + "\n";
             }
 
             this.SaveLog(sDebug);
-        } catch (Exception var18) {
-            var18.printStackTrace();
+
+        } catch (Exception e) {
+            e.printStackTrace();
         }
     }
 
@@ -3273,19 +4225,23 @@ public class DispatchServiceImpl implements DispatchService {
         try {
             new Update();
             new Query();
-            Pageable pageableRequest = PageRequest.of(0, 1, Sort.by(new String[]{"utcDateTime"}).descending());
-            Query query = new Query(Criteria.where("driverId").is(driverId).and("dateTime").lt(utcDateTime).and("isVoilation").is(0));
+            Pageable pageableRequest = PageRequest.of(0, 1, Sort.by(new String[]{"dateTime"}).descending());
+            Query query = new Query(
+                    Criteria.where("driverId").is(driverId).and("dateTime").lt(utcDateTime).and("isVoilation").is(0));
             query.limit(1);
             query.with(pageableRequest);
-            List<DriverStatusLog> driverStatusLog = this.mongoTemplate.find(query, DriverStatusLog.class, "driver_status_log");
+            List<DriverStatusLog> driverStatusLog = this.mongoTemplate.find(query, DriverStatusLog.class,
+                    "driver_status_log");
             long statusId = 0L;
             if (driverStatusLog.size() > 0) {
                 long dataUtcDateTime = driverStatusLog.get(0).getDateTime();
                 statusId = driverStatusLog.get(0).getStatusId();
                 new Query();
-                Query queryData = new Query(Criteria.where("dateTime").gte(dataUtcDateTime).and("driverId").is(driverId).and("isVoilation").is(0));
+                Query queryData = new Query(Criteria.where("dateTime").gte(dataUtcDateTime).and("driverId").is(driverId)
+                        .and("isVoilation").is(0));
                 queryData.with(Sort.by(Direction.ASC, new String[]{"dateTime"}));
-                List<DriverStatusLog> dsLogList = this.mongoTemplate.find(queryData, DriverStatusLog.class, "driver_status_log");
+                List<DriverStatusLog> dsLogList = this.mongoTemplate.find(queryData, DriverStatusLog.class,
+                        "driver_status_log");
 
                 for (int i = 0; i < dsLogList.size(); ++i) {
                     long dsLogStatusId = statusId + (long) i;
@@ -3298,14 +4254,17 @@ public class DispatchServiceImpl implements DispatchService {
             } else {
                 statusId = 1L;
                 new Query();
-                Query var26 = new Query(Criteria.where("dateTime").gte(utcDateTime).and("driverId").is(driverId).and("isVoilation").is(0));
+                Query var26 = new Query(Criteria.where("dateTime").gte(utcDateTime).and("driverId").is(driverId)
+                        .and("isVoilation").is(0));
                 sDebug = sDebug + " >> ";
                 var26.with(Sort.by(Direction.ASC, new String[]{"dateTime"}));
-                List<DriverStatusLog> dsLogList = this.mongoTemplate.find(var26, DriverStatusLog.class, "driver_status_log");
+                List<DriverStatusLog> dsLogList = this.mongoTemplate.find(var26, DriverStatusLog.class,
+                        "driver_status_log");
 
                 for (int i = 0; i < dsLogList.size(); ++i) {
                     long dsLogStatusId = statusId + (long) i;
-                    sDebug = sDebug + " status ID : " + dsLogStatusId + " :: " + dsLogList.get(i).getStatus() + " :: " + dsLogList.get(i).getLogDataId() + "\n";
+                    sDebug = sDebug + " status ID : " + dsLogStatusId + " :: " + dsLogList.get(i).getStatus() + " :: "
+                            + dsLogList.get(i).getLogDataId() + "\n";
                     query = new Query();
                     query.addCriteria(Criteria.where("logDataId").is(dsLogList.get(i).getLogDataId()));
                     Update var21 = new Update();
@@ -3345,15 +4304,18 @@ public class DispatchServiceImpl implements DispatchService {
 
             for (int i = 0; i < logStatusData.size(); ++i) {
                 utcDateTime = logStatusData.get(i).getUtcDateTime();
-                LocalDateTime ldtDateTime = LocalDateTime.ofInstant(Instant.ofEpochMilli(utcDateTime), ZoneId.of("America/Los_Angeles"));
+                LocalDateTime ldtDateTime = LocalDateTime.ofInstant(Instant.ofEpochMilli(utcDateTime),
+                        ZoneId.of("America/Los_Angeles"));
                 driverId = logStatusData.get(i).getDriverId();
                 ObjectId objId = new ObjectId(logStatusData.get(i).getDriverStatusId());
                 if (i == 0) {
                     Pageable pageableRequest = PageRequest.of(0, 1, Sort.by(new String[]{"_id"}).descending());
-                    Query queryData = new Query(Criteria.where("driverId").is(driverId).and("utcDateTime").lt(utcDateTime).and("isVoilation").is(0));
+                    Query queryData = new Query(Criteria.where("driverId").is(driverId).and("utcDateTime")
+                            .lt(utcDateTime).and("isVoilation").is(0));
                     queryData.limit(1);
                     queryData.with(pageableRequest);
-                    driveringStatus = this.mongoTemplate.find(queryData, DriveringStatusLogViewDto.class, "drivering_status");
+                    driveringStatus = this.mongoTemplate.find(queryData, DriveringStatusLogViewDto.class,
+                            "drivering_status");
                     long duration = utcDateTime - driveringStatus.get(0).getUtcDateTime();
                     durationInSec = duration / 1000L;
                     EmployeeMaster empDetails = this.employeeMasterRepo.findByEmployeeId((int) driverId);
@@ -3374,18 +4336,20 @@ public class DispatchServiceImpl implements DispatchService {
                     }
 
                     if (i == 0) {
-                        LocalDateTime localDateTime = LocalDateTime.ofInstant(Instant.ofEpochMilli(logShiftUtcDateTime), zoneId);
+                        LocalDateTime localDateTime = LocalDateTime.ofInstant(Instant.ofEpochMilli(logShiftUtcDateTime),
+                                zoneId);
                         LocalDateTime fromDate = localDateTime.withHour(0).withMinute(0).withSecond(0);
                         LocalDateTime toDate = localDateTime.withHour(23).withMinute(59).withSecond(59);
                         long fromTimestamp = fromDate.atZone(zoneId).toInstant().toEpochMilli();
                         long toTimestamp = toDate.atZone(zoneId).toInstant().toEpochMilli();
                         Pageable pageableRequest = PageRequest.of(0, 1, Sort.by(new String[]{"_id"}).descending());
                         Query queryData = new Query(
-                                Criteria.where("driverId").is(driverId).and("utcDateTime").gte(fromTimestamp).lte(toTimestamp).and("isVoilation").is(0)
-                        );
+                                Criteria.where("driverId").is(driverId).and("utcDateTime").gte(fromTimestamp)
+                                        .lte(toTimestamp).and("isVoilation").is(0));
                         queryData.limit(1);
                         queryData.with(pageableRequest);
-                        driveringStatus = this.mongoTemplate.find(queryData, DriveringStatusLogViewDto.class, "drivering_status");
+                        driveringStatus = this.mongoTemplate.find(queryData, DriveringStatusLogViewDto.class,
+                                "drivering_status");
                         if (driveringStatus.size() > 0) {
                             isDataExist = true;
                             break;
@@ -3413,18 +4377,20 @@ public class DispatchServiceImpl implements DispatchService {
                     }
 
                     if (i == 0) {
-                        LocalDateTime localDateTime = LocalDateTime.ofInstant(Instant.ofEpochMilli(logShiftUtcDateTime), zoneId);
+                        LocalDateTime localDateTime = LocalDateTime.ofInstant(Instant.ofEpochMilli(logShiftUtcDateTime),
+                                zoneId);
                         LocalDateTime fromDate = localDateTime.withHour(0).withMinute(0).withSecond(0);
                         LocalDateTime toDate = localDateTime.withHour(23).withMinute(59).withSecond(59);
                         long fromTimestamp = fromDate.atZone(zoneId).toInstant().toEpochMilli();
                         long toTimestamp = toDate.atZone(zoneId).toInstant().toEpochMilli();
                         Pageable pageableRequest = PageRequest.of(0, 1, Sort.by(new String[]{"_id"}).descending());
                         Query queryData = new Query(
-                                Criteria.where("driverId").is(driverId).and("utcDateTime").gte(fromTimestamp).lte(toTimestamp).and("isVoilation").is(0)
-                        );
+                                Criteria.where("driverId").is(driverId).and("utcDateTime").gte(fromTimestamp)
+                                        .lte(toTimestamp).and("isVoilation").is(0));
                         queryData.limit(1);
                         queryData.with(pageableRequest);
-                        driveringStatus = this.mongoTemplate.find(queryData, DriveringStatusLogViewDto.class, "drivering_status");
+                        driveringStatus = this.mongoTemplate.find(queryData, DriveringStatusLogViewDto.class,
+                                "drivering_status");
                         if (driveringStatus.size() > 0) {
                             isDataExist = true;
                             break;
@@ -3443,6 +4409,8 @@ public class DispatchServiceImpl implements DispatchService {
                 }
 
                 if (!isDataExist) {
+                    this.invalidateCertifiedLogForDate(driverId, utcDateTime);
+                    this.invalidateCertifiedLogForDate(driverId, logShiftUtcDateTime);
                     result.setResult("Updated");
                     result.setStatus(Result.SUCCESS);
                     result.setMessage("Bulk Log Assign To Driver Updated Successfully" + sDebug);
@@ -3460,7 +4428,8 @@ public class DispatchServiceImpl implements DispatchService {
         return result;
     }
 
-    public DriveringStatusLogViewDto ShiftDriverLog(DriveringStatusLogViewDto logStatusData, long driverId, int i, DriveringStatusLogViewDto driveringStatus1) {
+    public DriveringStatusLogViewDto ShiftDriverLog(DriveringStatusLogViewDto logStatusData, long driverId, int i,
+            DriveringStatusLogViewDto driveringStatus1) {
         String sDebug = "";
         String logStatusId = "";
         String logStatus = "";
@@ -3496,7 +4465,8 @@ public class DispatchServiceImpl implements DispatchService {
         new ObjectId(logStatusId);
         if (i == 0) {
             Pageable pageableRequest = PageRequest.of(0, 1, Sort.by(new String[]{"utcDateTime"}).descending());
-            Query queryData = new Query(Criteria.where("driverId").is(driverId).and("utcDateTime").lt(utcDateTime).and("isVoilation").is(0));
+            Query queryData = new Query(Criteria.where("driverId").is(driverId).and("utcDateTime").lt(utcDateTime)
+                    .and("isVoilation").is(0));
             queryData.limit(1);
             queryData.with(pageableRequest);
             driveringStatus = this.mongoTemplate.find(queryData, DriveringStatusLogViewDto.class, "drivering_status");
@@ -3533,9 +4503,11 @@ public class DispatchServiceImpl implements DispatchService {
             shift = driveringStatus1.getShift();
             long duration = logStatusData.getUtcDateTime() - driveringStatus1.getUtcDateTime();
             long durationInSec = duration / 1000L;
-            sDebug = sDebug + " >> Duration : " + duration + "  :: " + shift + " :: " + day + " :: " + driveringStatus1.getStatus() + ",";
+            sDebug = sDebug + " >> Duration : " + duration + "  :: " + shift + " :: " + day + " :: "
+                    + driveringStatus1.getStatus() + ",";
             if (totalWeeklyTime > 0L) {
-                if (!driveringStatus1.getStatus().equals("OnSleep") && !driveringStatus1.getStatus().equals("OffDuty")) {
+                if (!driveringStatus1.getStatus().equals("OnSleep")
+                        && !driveringStatus1.getStatus().equals("OffDuty")) {
                     totalWeeklyTimeDiff = totalWeeklyTime - duration / 1000L;
                 } else {
                     totalWeeklyTimeDiff = totalWeeklyTime;
@@ -3545,7 +4517,8 @@ public class DispatchServiceImpl implements DispatchService {
             }
 
             if (totalTimeOnDuty > 0L) {
-                if (!driveringStatus1.getStatus().equals("OnSleep") && !driveringStatus1.getStatus().equals("OffDuty")) {
+                if (!driveringStatus1.getStatus().equals("OnSleep")
+                        && !driveringStatus1.getStatus().equals("OffDuty")) {
                     totalTimeOnDutyDiff = totalTimeOnDuty - duration / 1000L;
                 } else {
                     totalTimeOnDutyDiff = totalTimeOnDuty;
@@ -3577,7 +4550,8 @@ public class DispatchServiceImpl implements DispatchService {
             }
 
             long voilation8Hour = 28800L;
-            LocalDateTime dateTime = LocalDateTime.ofInstant(Instant.ofEpochMilli(driveringStatus1.getUtcDateTime()), ZoneId.systemDefault());
+            LocalDateTime dateTime = LocalDateTime.ofInstant(Instant.ofEpochMilli(driveringStatus1.getUtcDateTime()),
+                    ZoneId.systemDefault());
             EmployeeMaster empDetails = this.employeeMasterRepo.findByEmployeeId((int) driverId);
             CycleUsa cycleUsaData = this.cycleUsaRepo.findByCycleUsaId((int) empDetails.getCycleUsaId());
             String shiftLogAddDto = driveringStatus1.getStatus();
@@ -3685,8 +4659,7 @@ public class DispatchServiceImpl implements DispatchService {
             long totalTimeOnDuty,
             long totalTimeDrive,
             long totalTimeOnSleep,
-            boolean checkCertified
-    ) {
+            boolean checkCertified) {
         Query query = new Query();
         query.addCriteria(Criteria.where("_id").is(objId));
         Update update = new Update();
@@ -3717,7 +4690,8 @@ public class DispatchServiceImpl implements DispatchService {
     }
 
     @Override
-    public ResultWrapper<List<DriveringStatusViewDto>> ViewDriveringStatusForGraph(DriveringStatusCRUDDto driveringStatusCRUDDto) {
+    public ResultWrapper<List<DriveringStatusViewDto>> ViewDriveringStatusForGraph(
+            DriveringStatusCRUDDto driveringStatusCRUDDto) {
         ResultWrapper<List<DriveringStatusViewDto>> result = new ResultWrapper<>();
         String sDebug = "";
 
@@ -3763,12 +4737,15 @@ public class DispatchServiceImpl implements DispatchService {
                                 .is(0)
                                 .and("isVisible")
                                 .is(1)
+                                .and("isActive")
+                                .in(0, 2)
                                 .and("status")
-                                .in(new Object[]{"OnDrive", "OnDuty", "OnSleep", "OffDuty", "PersonalUse", "YardMove"})
-                );
+                                .in(new Object[]{"OnDrive", "OnDuty", "OnSleep", "OffDuty", "PersonalUse",
+                            "YardMove"}));
                 query.limit(1);
                 query.with(pageableRequest);
-                List<DriveringStatusViewDto> driveringStatusViewDtoData = this.mongoTemplate.find(query, DriveringStatusViewDto.class, "drivering_status");
+                List<DriveringStatusViewDto> driveringStatusViewDtoData = this.mongoTemplate.find(query,
+                        DriveringStatusViewDto.class, "drivering_status");
                 if (driveringStatusViewDtoData.size() > 0) {
                     driveringStatusViewDto.add(driveringStatusViewDtoData.get(0));
                 }
@@ -3786,25 +4763,77 @@ public class DispatchServiceImpl implements DispatchService {
                     driveringStatusViewDto.get(i).setToDate(to);
 
                     try {
-                        EmployeeMaster empInfo = this.employeeMasterRepo.findByEmployeeId((int) driveringStatusViewDto.get(i).getDriverId());
+                        EmployeeMaster empInfo = this.employeeMasterRepo
+                                .findByEmployeeId((int) driveringStatusViewDto.get(i).getDriverId());
                         driverName = empInfo.getFirstName() + " " + empInfo.getLastName();
                         driveringStatusViewDto.get(i).setDriverName(driverName);
                         driveringStatusViewDto.get(i).setMobileNo(empInfo.getMobileNo());
                         driveringStatusViewDto.get(i).setEmail(empInfo.getEmail());
                         driveringStatusViewDto.get(i).setCompanyDriverId(empInfo.getUsername());
-                        driveringStatusViewDto.get(i).setCdlNo(empInfo.getCdlNo());
-                        MainTerminalMaster mainTerminal = this.mainTerminalMasterRepo.findByMainTerminalId((int) empInfo.getMainTerminalId());
-                        driveringStatusViewDto.get(i).setMainTerminalName(mainTerminal.getMainTerminalName());
-                        CountryMaster countryInfo = this.countryMasterRepo.findByCountryId((int) empInfo.getCdlCountryId());
-                        driveringStatusViewDto.get(i).setCountryName(countryInfo.getCountryName());
-                        StateMaster stateInfo = this.stateMasterRepo.findByStateId((int) empInfo.getCdlStateId());
-                        driveringStatusViewDto.get(i).setStateName(stateInfo.getStateName());
-                        if (mainTerminal.getStateId() > 0L) {
-                            stateInfo = this.stateMasterRepo.findByStateId((int) mainTerminal.getStateId());
-                            timezoneName = stateInfo.getTimeZone();
-                            timezoneOffSet = stateInfo.getTimezoneOffSet();
-                            driveringStatusViewDto.get(i).setTimezoneName(timezoneName);
-                            driveringStatusViewDto.get(i).setTimezoneOffSet(timezoneOffSet);
+                        if (empInfo != null && empInfo.getMainTerminalId() > 0L) {
+                            MainTerminalMaster mainTerminal = this.mainTerminalMasterRepo
+                                    .findByMainTerminalId((int) empInfo.getMainTerminalId());
+                            if (mainTerminal != null) {
+                                driveringStatusViewDto.get(i).setMainTerminalName(mainTerminal.getMainTerminalName());
+                                if (mainTerminal.getStateId() > 0L) {
+                                    StateMaster terminalState = this.stateMasterRepo
+                                            .findByStateId((int) mainTerminal.getStateId());
+                                    if (terminalState != null) {
+                                        timezoneName = terminalState.getTimeZone();
+                                        timezoneOffSet = terminalState.getTimezoneOffSet();
+                                        driveringStatusViewDto.get(i).setTimezoneName(timezoneName);
+                                        driveringStatusViewDto.get(i).setTimezoneOffSet(timezoneOffSet);
+                                    }
+                                }
+                            }
+                        }
+                        if (driveringStatusViewDto.get(i).getCdlNo() != null
+                                && !driveringStatusViewDto.get(i).getCdlNo().isEmpty()) {
+                            if (driveringStatusViewDto.get(i).getCdlStateId() != null
+                                    && driveringStatusViewDto.get(i).getCdlStateId() > 0) {
+                                StateMaster sInfo = this.stateMasterRepo
+                                        .findByStateId(driveringStatusViewDto.get(i).getCdlStateId());
+                                if (sInfo != null) {
+                                    driveringStatusViewDto.get(i).setStateName(sInfo.getStateName());
+                                    driveringStatusViewDto.get(i).setCdlStateCode(sInfo.getStateCode());
+                                }
+                            } else if (empInfo != null && empInfo.getCdlStateId() > 0L) {
+                                StateMaster sInfo = this.stateMasterRepo.findByStateId((int) empInfo.getCdlStateId());
+                                if (sInfo != null) {
+                                    driveringStatusViewDto.get(i).setStateName(sInfo.getStateName());
+                                    driveringStatusViewDto.get(i).setCdlStateCode(sInfo.getStateCode());
+                                }
+                            }
+                            if (driveringStatusViewDto.get(i).getCdlCountryId() != null
+                                    && driveringStatusViewDto.get(i).getCdlCountryId() > 0) {
+                                CountryMaster cInfo = this.countryMasterRepo
+                                        .findByCountryId(driveringStatusViewDto.get(i).getCdlCountryId());
+                                if (cInfo != null) {
+                                    driveringStatusViewDto.get(i).setCountryName(cInfo.getCountryName());
+                                }
+                            } else if (empInfo != null && empInfo.getCdlCountryId() > 0L) {
+                                CountryMaster cInfo = this.countryMasterRepo
+                                        .findByCountryId((int) empInfo.getCdlCountryId());
+                                if (cInfo != null) {
+                                    driveringStatusViewDto.get(i).setCountryName(cInfo.getCountryName());
+                                }
+                            }
+                        } else if (empInfo != null) {
+                            driveringStatusViewDto.get(i).setCdlNo(empInfo.getCdlNo());
+                            if (empInfo.getCdlCountryId() > 0L) {
+                                CountryMaster cInfo = this.countryMasterRepo
+                                        .findByCountryId((int) empInfo.getCdlCountryId());
+                                if (cInfo != null) {
+                                    driveringStatusViewDto.get(i).setCountryName(cInfo.getCountryName());
+                                }
+                            }
+                            if (empInfo.getCdlStateId() > 0L) {
+                                StateMaster sInfo = this.stateMasterRepo.findByStateId((int) empInfo.getCdlStateId());
+                                if (sInfo != null) {
+                                    driveringStatusViewDto.get(i).setStateName(sInfo.getStateName());
+                                    driveringStatusViewDto.get(i).setCdlStateCode(sInfo.getStateCode());
+                                }
+                            }
                         }
 
                         driveringStatusViewDto.get(i).setExempt(empInfo.getExempt());
@@ -3825,19 +4854,23 @@ public class DispatchServiceImpl implements DispatchService {
                         LocalDateTime ldtEndOfDay = LocalDateTime.of(lDate, LocalTime.MAX);
                         long fromTimestamp = ldtStartOfDay.atZone(ZoneId.systemDefault()).toInstant().toEpochMilli();
                         long toTimestamp = ldtEndOfDay.atZone(ZoneId.systemDefault()).toInstant().toEpochMilli();
-                        sDebug = sDebug + " >> Date : " + fromTimestamp + " :: " + toTimestamp + " :: " + driverId + ",";
-                        certifiedLogViewDto = this.lookupCertifiedLogDataOperation(fromTimestamp, toTimestamp, driverId);
+                        sDebug = sDebug + " >> Date : " + fromTimestamp + " :: " + toTimestamp + " :: " + driverId
+                                + ",";
+                        certifiedLogViewDto = this.lookupCertifiedLogDataOperation(fromTimestamp, toTimestamp,
+                                driverId);
                         sDebug = sDebug + " Size : " + certifiedLogViewDto.size() + ",";
 
                         for (int c = 0; c < certifiedLogViewDto.size(); ++c) {
                             if (certifiedLogViewDto.get(c).getCoDriverId() > 0L) {
-                                empInfo = this.employeeMasterRepo.findByEmployeeId((int) certifiedLogViewDto.get(c).getCoDriverId());
+                                empInfo = this.employeeMasterRepo
+                                        .findByEmployeeId((int) certifiedLogViewDto.get(c).getCoDriverId());
                                 driveringStatusViewDto.get(i).setCompanyCoDriverId(empInfo.getUsername());
                                 driverName = empInfo.getFirstName() + " " + empInfo.getLastName();
                                 driveringStatusViewDto.get(i).setCoDriverName(driverName);
                             }
 
-                            sDebug = sDebug + " :: " + certifiedLogViewDto.get(c).getTrailers() + " :: " + certifiedLogViewDto.get(c).getShippingDocs() + ",";
+                            sDebug = sDebug + " :: " + certifiedLogViewDto.get(c).getTrailers() + " :: "
+                                    + certifiedLogViewDto.get(c).getShippingDocs() + ",";
                             driveringStatusViewDto.get(i).setTrailers(certifiedLogViewDto.get(c).getTrailers());
                             driveringStatusViewDto.get(i).setShippingDocs(certifiedLogViewDto.get(c).getShippingDocs());
                             String setImagePath1 = url.concat(certifiedLogViewDto.get(i).getCertifiedSignature());
@@ -3887,17 +4920,20 @@ public class DispatchServiceImpl implements DispatchService {
                                 .and("isVisible")
                                 .is(1)
                                 .and("status")
-                                .in(new Object[]{"OnDrive", "OnDuty", "OnSleep", "OffDuty", "PersonalUse", "YardMove"})
-                );
+                                .in(new Object[]{"OnDrive", "OnDuty", "OnSleep", "OffDuty", "PersonalUse",
+                            "YardMove"}));
                 query.limit(1);
                 query.with(var73);
-                driveringStatusViewDtoData = this.mongoTemplate.find(query, DriveringStatusViewDto.class, "drivering_status");
+                driveringStatusViewDtoData = this.mongoTemplate.find(query, DriveringStatusViewDto.class,
+                        "drivering_status");
                 if (driveringStatusViewDtoData.size() > 0) {
-                    EmployeeMaster empInfo = this.employeeMasterRepo.findByEmployeeId((int) driveringStatusViewDtoData.get(0).getDriverId());
+                    EmployeeMaster empInfo = this.employeeMasterRepo
+                            .findByEmployeeId((int) driveringStatusViewDtoData.get(0).getDriverId());
                     MainTerminalMaster mainTerminal = null;
 
                     try {
-                        mainTerminal = this.mainTerminalMasterRepo.findByMainTerminalId((int) empInfo.getMainTerminalId());
+                        mainTerminal = this.mainTerminalMasterRepo
+                                .findByMainTerminalId((int) empInfo.getMainTerminalId());
                         driveringStatusViewDtoData.get(0).setMainTerminalName(mainTerminal.getMainTerminalName());
                     } catch (Exception var53) {
                         var53.printStackTrace();
@@ -3972,7 +5008,8 @@ public class DispatchServiceImpl implements DispatchService {
     }
 
     public List<CertifiedLogViewDto> lookupCertifiedLogDataByDateOperation(String sDate, long driverId) {
-        MatchOperation filter = Aggregation.match(Criteria.where("certifiedDate").is(sDate).and("driverId").is(driverId));
+        MatchOperation filter = Aggregation
+                .match(Criteria.where("certifiedDate").is(sDate).and("driverId").is(driverId));
         ProjectionOperation projectStage = Aggregation.project(
                 new String[]{
                     "driverId",
@@ -3986,8 +5023,7 @@ public class DispatchServiceImpl implements DispatchService {
                     "addedTimestamp",
                     "_id",
                     "certifiedAt"
-                }
-        );
+                });
         Aggregation aggregation = Aggregation.newAggregation(new AggregationOperation[]{filter, projectStage});
         return this.mongoTemplate.aggregate(aggregation, "certified_log", CertifiedLogViewDto.class).getMappedResults();
     }
@@ -4003,9 +5039,11 @@ public class DispatchServiceImpl implements DispatchService {
                             .is(driverId)
                             .and("isVisible")
                             .is(1)
+                            .and("isActive")
+                            .in(0, 2)
                             .and("status")
-                            .in(new Object[]{"OnDrive", "OnDuty", "OnSleep", "OffDuty", "PersonalUse", "YardMove", "Voilation"})
-            );
+                            .in(new Object[]{"OnDrive", "OnDuty", "OnSleep", "OffDuty", "PersonalUse", "YardMove",
+                        "Voilation"}));
         } else {
             filter = Aggregation.match(
                     Criteria.where("utcDateTime")
@@ -4013,9 +5051,11 @@ public class DispatchServiceImpl implements DispatchService {
                             .lte(to)
                             .and("isVisible")
                             .is(1)
+                            .and("isActive")
+                            .in(0, 2)
                             .and("status")
-                            .in(new Object[]{"OnDrive", "OnDuty", "OnSleep", "OffDuty", "PersonalUse", "YardMove", "Voilation"})
-            );
+                            .in(new Object[]{"OnDrive", "OnDuty", "OnSleep", "OffDuty", "PersonalUse", "YardMove",
+                        "Voilation"}));
         }
 
         ProjectionOperation projectStage = Aggregation.project(
@@ -4042,18 +5082,23 @@ public class DispatchServiceImpl implements DispatchService {
                     "timezone",
                     "remainingWeeklyTime",
                     "remainingDutyTime",
-                    "remainingDriveTime"
-                }
-        )
+                    "remainingDriveTime",
+                    "cdlNo",
+                    "cdlStateId",
+                    "cdlCountryId",
+                    "cdlStateCode"
+                })
                 .andExclude(new String[]{"_id"});
         Aggregation aggregation = Aggregation.newAggregation(
-                new AggregationOperation[]{filter, projectStage, Aggregation.sort(Direction.ASC, new String[]{"utcDateTime"})}
-        );
-        return this.mongoTemplate.aggregate(aggregation, "drivering_status", DriveringStatusViewDto.class).getMappedResults();
+                new AggregationOperation[]{filter, projectStage,
+                    Aggregation.sort(Direction.ASC, new String[]{"utcDateTime"})});
+        return this.mongoTemplate.aggregate(aggregation, "drivering_status", DriveringStatusViewDto.class)
+                .getMappedResults();
     }
 
     @Override
-    public ResultWrapper<List<DriveringStatusViewDto>> ViewDriveringStatusForGraphNew(DriveringStatusCRUDDto driveringStatusCRUDDto) {
+    public ResultWrapper<List<DriveringStatusViewDto>> ViewDriveringStatusForGraphNew(
+            DriveringStatusCRUDDto driveringStatusCRUDDto) {
         ResultWrapper<List<DriveringStatusViewDto>> result = new ResultWrapper<>();
 
         try {
@@ -4076,10 +5121,12 @@ public class DispatchServiceImpl implements DispatchService {
                 String weeklyTime = "";
                 String onBreak = "";
                 Pageable pageableRequest = PageRequest.of(0, 1, Sort.by(new String[]{"_id"}).descending());
-                Query query = new Query(Criteria.where("driverId").is(driverId).and("utcDateTime").lte(from));
+                Query query = new Query(
+                        Criteria.where("driverId").is(driverId).and("utcDateTime").lte(from).and("isActive").in(0, 2));
                 query.limit(1);
                 query.with(pageableRequest);
-                List<DriveringStatusViewDto> driveringStatusViewDtoData = this.mongoTemplate.find(query, DriveringStatusViewDto.class, "drivering_status");
+                List<DriveringStatusViewDto> driveringStatusViewDtoData = this.mongoTemplate.find(query,
+                        DriveringStatusViewDto.class, "drivering_status");
                 if (driveringStatusViewDtoData.size() > 0) {
                     driveringStatusViewDto.add(driveringStatusViewDtoData.get(0));
                 }
@@ -4095,22 +5142,50 @@ public class DispatchServiceImpl implements DispatchService {
                     driveringStatusViewDto.get(i).setToDate(to);
 
                     try {
-                        EmployeeMaster empInfo = this.employeeMasterRepo.findByEmployeeId((int) driveringStatusViewDto.get(i).getDriverId());
+                        EmployeeMaster empInfo = this.employeeMasterRepo
+                                .findByEmployeeId((int) driveringStatusViewDto.get(i).getDriverId());
                         driverName = empInfo.getFirstName() + " " + empInfo.getLastName();
                         driveringStatusViewDto.get(i).setDriverName(driverName);
                         driveringStatusViewDto.get(i).setMobileNo(empInfo.getMobileNo());
                         driveringStatusViewDto.get(i).setEmail(empInfo.getEmail());
                         driveringStatusViewDto.get(i).setCompanyDriverId(empInfo.getUsername());
-                        driveringStatusViewDto.get(i).setCdlNo(empInfo.getCdlNo());
-                        CountryMaster countryInfo = this.countryMasterRepo.findByCountryId((int) empInfo.getCdlCountryId());
-                        driveringStatusViewDto.get(i).setCountryName(countryInfo.getCountryName());
-                        StateMaster stateInfo = this.stateMasterRepo.findByStateId((int) empInfo.getCdlStateId());
-                        driveringStatusViewDto.get(i).setStateName(stateInfo.getStateName());
+                        if (driveringStatusViewDto.get(i).getCdlNo() == null
+                                || driveringStatusViewDto.get(i).getCdlNo().isEmpty()) {
+                            driveringStatusViewDto.get(i).setCdlNo(empInfo.getCdlNo());
+                        }
+                        if (driveringStatusViewDto.get(i).getCdlCountryId() == null
+                                || driveringStatusViewDto.get(i).getCdlCountryId() <= 0) {
+                            CountryMaster countryInfo = this.countryMasterRepo
+                                    .findByCountryId((int) empInfo.getCdlCountryId());
+                            if (countryInfo != null) {
+                                driveringStatusViewDto.get(i).setCountryName(countryInfo.getCountryName());
+                            }
+                        } else {
+                            CountryMaster countryInfo = this.countryMasterRepo
+                                    .findByCountryId(driveringStatusViewDto.get(i).getCdlCountryId());
+                            if (countryInfo != null) {
+                                driveringStatusViewDto.get(i).setCountryName(countryInfo.getCountryName());
+                            }
+                        }
+                        if (driveringStatusViewDto.get(i).getCdlStateId() == null
+                                || driveringStatusViewDto.get(i).getCdlStateId() <= 0) {
+                            StateMaster stateInfo = this.stateMasterRepo.findByStateId((int) empInfo.getCdlStateId());
+                            if (stateInfo != null) {
+                                driveringStatusViewDto.get(i).setStateName(stateInfo.getStateName());
+                            }
+                        } else {
+                            StateMaster stateInfo = this.stateMasterRepo
+                                    .findByStateId(driveringStatusViewDto.get(i).getCdlStateId());
+                            if (stateInfo != null) {
+                                driveringStatusViewDto.get(i).setStateName(stateInfo.getStateName());
+                            }
+                        }
                         driveringStatusViewDto.get(i).setExempt(empInfo.getExempt());
                         VehicleMaster vehcileInfo = this.vehicleMasterRepo.findByVehicleId((int) empInfo.getTruckNo());
                         driveringStatusViewDto.get(i).setTruckNo(vehcileInfo.getVehicleNo());
                         driveringStatusViewDto.get(i).setVin(vehcileInfo.getVin());
-                        MainTerminalMaster mainTerminal = this.mainTerminalMasterRepo.findByMainTerminalId((int) empInfo.getMainTerminalId());
+                        MainTerminalMaster mainTerminal = this.mainTerminalMasterRepo
+                                .findByMainTerminalId((int) empInfo.getMainTerminalId());
                         driveringStatusViewDto.get(i).setMainTerminalName(mainTerminal.getMainTerminalName());
                         CycleUsa cycleUsa = this.cycleUsaRepo.findByCycleUsaId((int) empInfo.getCycleUsaId());
                         driveringStatusViewDto.get(i).setCycleUsaName(cycleUsa.getCycleUsaName());
@@ -4120,10 +5195,12 @@ public class DispatchServiceImpl implements DispatchService {
                             driveringStatusViewDto.get(i).setDotNo(clientInfo.getDotNo());
                         }
 
-                        List<CertifiedLogViewDto> certifiedLogViewDto = this.lookupCertifiedLogDataOperation(from, to, driverId);
+                        List<CertifiedLogViewDto> certifiedLogViewDto = this.lookupCertifiedLogDataOperation(from, to,
+                                driverId);
 
                         for (int c = 0; c < certifiedLogViewDto.size(); ++c) {
-                            empInfo = this.employeeMasterRepo.findByEmployeeId((int) certifiedLogViewDto.get(c).getCoDriverId());
+                            empInfo = this.employeeMasterRepo
+                                    .findByEmployeeId((int) certifiedLogViewDto.get(c).getCoDriverId());
                             driveringStatusViewDto.get(i).setCompanyCoDriverId(empInfo.getUsername());
                             driverName = empInfo.getFirstName() + " " + empInfo.getLastName();
                             driveringStatusViewDto.get(i).setCoDriverName(driverName);
@@ -4184,9 +5261,11 @@ public class DispatchServiceImpl implements DispatchService {
     public List<DriveringStatusViewDto> lookupDriverStatusDataForGraphNewOperation(long from, long to, long driverId) {
         MatchOperation filter = null;
         if (driverId > 0L) {
-            filter = Aggregation.match(Criteria.where("utcDateTime").gte(from).lte(to).and("driverId").is(driverId).and("isVoilation").is(0));
+            filter = Aggregation.match(Criteria.where("utcDateTime").gte(from).lte(to).and("driverId").is(driverId)
+                    .and("isVisible").is(1).and("isVoilation").is(0).and("isActive").in(0, 2));
         } else {
-            filter = Aggregation.match(Criteria.where("utcDateTime").gte(from).lte(to).and("isVoilation").is(0));
+            filter = Aggregation.match(Criteria.where("utcDateTime").gte(from).lte(to).and("isVisible").is(1)
+                    .and("isVoilation").is(0).and("isActive").in(0, 2));
         }
 
         ProjectionOperation projectStage = Aggregation.project(
@@ -4213,18 +5292,23 @@ public class DispatchServiceImpl implements DispatchService {
                     "timezone",
                     "remainingWeeklyTime",
                     "remainingDutyTime",
-                    "remainingDriveTime"
-                }
-        )
+                    "remainingDriveTime",
+                    "cdlNo",
+                    "cdlStateId",
+                    "cdlCountryId",
+                    "cdlStateCode"
+                })
                 .andExclude(new String[]{"_id"});
         Aggregation aggregation = Aggregation.newAggregation(
-                new AggregationOperation[]{filter, projectStage, Aggregation.sort(Direction.ASC, new String[]{"utcDateTime"})}
-        );
-        return this.mongoTemplate.aggregate(aggregation, "drivering_status", DriveringStatusViewDto.class).getMappedResults();
+                new AggregationOperation[]{filter, projectStage,
+                    Aggregation.sort(Direction.ASC, new String[]{"utcDateTime"})});
+        return this.mongoTemplate.aggregate(aggregation, "drivering_status", DriveringStatusViewDto.class)
+                .getMappedResults();
     }
 
     @Override
-    public ResultWrapper<List<DriveringStatusViewDto>> ViewVoilationReport(DriveringStatusCRUDDto driveringStatusCRUDDto) {
+    public ResultWrapper<List<DriveringStatusViewDto>> ViewVoilationReport(
+            DriveringStatusCRUDDto driveringStatusCRUDDto) {
         ResultWrapper<List<DriveringStatusViewDto>> result = new ResultWrapper<>();
         String sDebug = "";
 
@@ -4239,32 +5323,61 @@ public class DispatchServiceImpl implements DispatchService {
             long to = ldtToDate.atZone(ZoneId.systemDefault()).toInstant().toEpochMilli();
             String driverName = "";
             if (driverId > 0L) {
-                List<DriveringStatusViewDto> driveringStatusViewDto = this.lookupDriverStatusDataOfVoilationOperation(from, to, driverId);
+                List<DriveringStatusViewDto> driveringStatusViewDto = this
+                        .lookupDriverStatusDataOfVoilationOperation(from, to, driverId);
 
                 for (int i = 0; i < driveringStatusViewDto.size(); ++i) {
                     driveringStatusViewDto.get(i).setFromDate(from);
                     driveringStatusViewDto.get(i).setToDate(to);
 
                     try {
-                        EmployeeMaster empInfo = this.employeeMasterRepo.findByEmployeeId((int) driveringStatusViewDto.get(i).getDriverId());
+                        EmployeeMaster empInfo = this.employeeMasterRepo
+                                .findByEmployeeId((int) driveringStatusViewDto.get(i).getDriverId());
                         driverName = empInfo.getFirstName() + " " + empInfo.getLastName();
                         driveringStatusViewDto.get(i).setDriverName(driverName);
                         driveringStatusViewDto.get(i).setMobileNo(empInfo.getMobileNo());
                         driveringStatusViewDto.get(i).setEmail(empInfo.getEmail());
                         driveringStatusViewDto.get(i).setCompanyDriverId(empInfo.getUsername());
-                        driveringStatusViewDto.get(i).setCdlNo(empInfo.getCdlNo());
-                        CountryMaster countryInfo = this.countryMasterRepo.findByCountryId((int) empInfo.getCdlCountryId());
-                        driveringStatusViewDto.get(i).setCountryName(countryInfo.getCountryName());
-                        StateMaster stateInfo = this.stateMasterRepo.findByStateId((int) empInfo.getCdlStateId());
-                        driveringStatusViewDto.get(i).setStateName(stateInfo.getStateName());
+                        if (driveringStatusViewDto.get(i).getCdlNo() == null
+                                || driveringStatusViewDto.get(i).getCdlNo().isEmpty()) {
+                            driveringStatusViewDto.get(i).setCdlNo(empInfo.getCdlNo());
+                        }
+                        if (driveringStatusViewDto.get(i).getCdlCountryId() == null
+                                || driveringStatusViewDto.get(i).getCdlCountryId() <= 0) {
+                            CountryMaster countryInfo = this.countryMasterRepo
+                                    .findByCountryId((int) empInfo.getCdlCountryId());
+                            if (countryInfo != null) {
+                                driveringStatusViewDto.get(i).setCountryName(countryInfo.getCountryName());
+                            }
+                        } else {
+                            CountryMaster countryInfo = this.countryMasterRepo
+                                    .findByCountryId(driveringStatusViewDto.get(i).getCdlCountryId());
+                            if (countryInfo != null) {
+                                driveringStatusViewDto.get(i).setCountryName(countryInfo.getCountryName());
+                            }
+                        }
+                        if (driveringStatusViewDto.get(i).getCdlStateId() == null
+                                || driveringStatusViewDto.get(i).getCdlStateId() <= 0) {
+                            StateMaster stateInfo = this.stateMasterRepo.findByStateId((int) empInfo.getCdlStateId());
+                            if (stateInfo != null) {
+                                driveringStatusViewDto.get(i).setStateName(stateInfo.getStateName());
+                            }
+                        } else {
+                            StateMaster stateInfo = this.stateMasterRepo
+                                    .findByStateId(driveringStatusViewDto.get(i).getCdlStateId());
+                            if (stateInfo != null) {
+                                driveringStatusViewDto.get(i).setStateName(stateInfo.getStateName());
+                            }
+                        }
                         driveringStatusViewDto.get(i).setExempt(empInfo.getExempt());
                         VehicleMaster vehcileInfo = this.vehicleMasterRepo.findByVehicleId((int) empInfo.getTruckNo());
                         driveringStatusViewDto.get(i).setTruckNo(vehcileInfo.getVehicleNo());
                         driveringStatusViewDto.get(i).setVin(vehcileInfo.getVin());
-                        MainTerminalMaster mainTerminal = this.mainTerminalMasterRepo.findByMainTerminalId((int) empInfo.getMainTerminalId());
+                        MainTerminalMaster mainTerminal = this.mainTerminalMasterRepo
+                                .findByMainTerminalId((int) empInfo.getMainTerminalId());
                         driveringStatusViewDto.get(i).setMainTerminalName(mainTerminal.getMainTerminalName());
                         if (mainTerminal.getStateId() > 0L) {
-                            stateInfo = this.stateMasterRepo.findByStateId((int) mainTerminal.getStateId());
+                            StateMaster stateInfo = this.stateMasterRepo.findByStateId((int) mainTerminal.getStateId());
                         }
 
                         CycleUsa cycleUsa = this.cycleUsaRepo.findByCycleUsaId((int) empInfo.getCycleUsaId());
@@ -4298,7 +5411,8 @@ public class DispatchServiceImpl implements DispatchService {
     public List<DriveringStatusViewDto> lookupDriverStatusDataOfVoilationOperation(long from, long to, long driverId) {
         MatchOperation filter = null;
         if (driverId > 0L) {
-            filter = Aggregation.match(Criteria.where("utcDateTime").gte(from).lte(to).and("driverId").is(driverId).and("isVoilation").is(1));
+            filter = Aggregation.match(Criteria.where("utcDateTime").gte(from).lte(to).and("driverId").is(driverId)
+                    .and("isVoilation").is(1));
         } else {
             filter = Aggregation.match(Criteria.where("utcDateTime").gte(from).lte(to).and("isVoilation").is(1));
         }
@@ -4327,18 +5441,23 @@ public class DispatchServiceImpl implements DispatchService {
                     "timezone",
                     "remainingWeeklyTime",
                     "remainingDutyTime",
-                    "remainingDriveTime"
-                }
-        )
+                    "remainingDriveTime",
+                    "cdlNo",
+                    "cdlStateId",
+                    "cdlCountryId",
+                    "cdlStateCode"
+                })
                 .andExclude(new String[]{"_id"});
         Aggregation aggregation = Aggregation.newAggregation(
-                new AggregationOperation[]{filter, projectStage, Aggregation.sort(Direction.ASC, new String[]{"utcDateTime"})}
-        );
-        return this.mongoTemplate.aggregate(aggregation, "drivering_status", DriveringStatusViewDto.class).getMappedResults();
+                new AggregationOperation[]{filter, projectStage,
+                    Aggregation.sort(Direction.ASC, new String[]{"utcDateTime"})});
+        return this.mongoTemplate.aggregate(aggregation, "drivering_status", DriveringStatusViewDto.class)
+                .getMappedResults();
     }
 
     @Override
-    public ResultWrapper<List<DriveringStatusViewDto>> ViewDriveringStatusCalculation(DriveringStatusCRUDDto driveringStatusCRUDDto) {
+    public ResultWrapper<List<DriveringStatusViewDto>> ViewDriveringStatusCalculation(
+            DriveringStatusCRUDDto driveringStatusCRUDDto) {
         ResultWrapper<List<DriveringStatusViewDto>> result = new ResultWrapper<>();
 
         try {
@@ -4356,9 +5475,9 @@ public class DispatchServiceImpl implements DispatchService {
             LocalDateTime ldtToDate = LocalDateTime.parse(toDate, formatter);
             long to = ldtToDate.atZone(ZoneId.systemDefault()).toInstant().toEpochMilli();
             if (driverId > 0L) {
-                List<DriveringStatusViewDto> driveringStatusViewDto = this.lookupDriverStatusDataForCalculationOperation(
-                        from, to, driverId, voilation, shift, days
-                );
+                List<DriveringStatusViewDto> driveringStatusViewDto = this
+                        .lookupDriverStatusDataForCalculationOperation(
+                                from, to, driverId, voilation, shift, days);
                 result.setResult(driveringStatusViewDto);
                 result.setStatus(Result.SUCCESS);
                 result.setMessage("Driver Status Information Send Successfully");
@@ -4375,7 +5494,8 @@ public class DispatchServiceImpl implements DispatchService {
         return result;
     }
 
-    public List<DriveringStatusViewDto> lookupDriverStatusDataForCalculationOperation(long from, long to, long driverId, int voilation, int shift, int days) {
+    public List<DriveringStatusViewDto> lookupDriverStatusDataForCalculationOperation(long from, long to, long driverId,
+            int voilation, int shift, int days) {
         MatchOperation filter = Aggregation.match(
                 Criteria.where("utcDateTime")
                         .gte(from)
@@ -4387,8 +5507,7 @@ public class DispatchServiceImpl implements DispatchService {
                         .and("shift")
                         .is(shift)
                         .and("days")
-                        .is(days)
-        );
+                        .is(days));
         ProjectionOperation projectStage = Aggregation.project(
                 new String[]{
                     "driverId",
@@ -4415,14 +5534,18 @@ public class DispatchServiceImpl implements DispatchService {
                     "timezone",
                     "remainingWeeklyTime",
                     "remainingDutyTime",
-                    "remainingDriveTime"
-                }
-        )
+                    "remainingDriveTime",
+                    "cdlNo",
+                    "cdlStateId",
+                    "cdlCountryId",
+                    "cdlStateCode"
+                })
                 .andExclude(new String[]{"_id"});
         Aggregation aggregation = Aggregation.newAggregation(
-                new AggregationOperation[]{filter, projectStage, Aggregation.sort(Direction.ASC, new String[]{"utcDateTime"})}
-        );
-        return this.mongoTemplate.aggregate(aggregation, "drivering_status", DriveringStatusViewDto.class).getMappedResults();
+                new AggregationOperation[]{filter, projectStage,
+                    Aggregation.sort(Direction.ASC, new String[]{"utcDateTime"})});
+        return this.mongoTemplate.aggregate(aggregation, "drivering_status", DriveringStatusViewDto.class)
+                .getMappedResults();
     }
 
     @Override
@@ -4460,7 +5583,8 @@ public class DispatchServiceImpl implements DispatchService {
                 return result;
             }
 
-            List<DriveringStatusViewDto> unidentifiedEvents = this.lookupUnIdentifiedEventsOperation(from, to, vehicleId, clientId, requestDto.getMacAddress(), requestDto.getTruckNo());
+            List<DriveringStatusViewDto> unidentifiedEvents = this.lookupUnIdentifiedEventsOperation(from, to,
+                    vehicleId, clientId, requestDto.getMacAddress(), requestDto.getTruckNo());
 
             Map<Long, VehicleMaster> vehicleMap = new HashMap<>();
             Map<String, VehicleMaster> macToVehicleMap = new HashMap<>();
@@ -4506,7 +5630,8 @@ public class DispatchServiceImpl implements DispatchService {
                 }
 
                 if (vm != null) {
-                    if (event.getTruckNo() == null || event.getTruckNo().trim().isEmpty() || event.getTruckNo().equals("0") || event.getTruckNo().equalsIgnoreCase("null")) {
+                    if (event.getTruckNo() == null || event.getTruckNo().trim().isEmpty()
+                            || event.getTruckNo().equals("0") || event.getTruckNo().equalsIgnoreCase("null")) {
                         event.setTruckNo(vm.getVehicleNo());
                     }
                     if (event.getVin() == null || event.getVin().trim().isEmpty()) {
@@ -4514,18 +5639,22 @@ public class DispatchServiceImpl implements DispatchService {
                     }
                 }
 
-                if ((event.getMacAddress() == null || event.getMacAddress().trim().isEmpty() || event.getMacAddress().equalsIgnoreCase("null")) && event.getVehicleId() > 0L) {
-                    List<MACAddressMaster> macList = this.macAddressMasterRepo.findByMACAddressMasterByVehicleId(event.getVehicleId());
+                if ((event.getMacAddress() == null || event.getMacAddress().trim().isEmpty()
+                        || event.getMacAddress().equalsIgnoreCase("null")) && event.getVehicleId() > 0L) {
+                    List<MACAddressMaster> macList = this.macAddressMasterRepo
+                            .findByMACAddressMasterByVehicleId(event.getVehicleId());
                     if (macList != null && !macList.isEmpty() && macList.get(0).getMacAddress() != null) {
                         event.setMacAddress(macList.get(0).getMacAddress());
                     }
                 }
 
-                if (event.getTruckNo() == null || event.getTruckNo().trim().isEmpty() || event.getTruckNo().equalsIgnoreCase("null")) {
+                if (event.getTruckNo() == null || event.getTruckNo().trim().isEmpty()
+                        || event.getTruckNo().equalsIgnoreCase("null")) {
                     event.setTruckNo(event.getVehicleId() > 0L ? "Vehicle #" + event.getVehicleId() : "N/A");
                 }
 
-                if (event.getMacAddress() == null || event.getMacAddress().trim().isEmpty() || event.getMacAddress().equalsIgnoreCase("null")) {
+                if (event.getMacAddress() == null || event.getMacAddress().trim().isEmpty()
+                        || event.getMacAddress().equalsIgnoreCase("null")) {
                     event.setMacAddress("N/A");
                 }
             }
@@ -4545,36 +5674,43 @@ public class DispatchServiceImpl implements DispatchService {
             var20.printStackTrace();
             result.setResult(new ArrayList<>());
             result.setStatus(Result.FAIL);
-            result.setMessage(var20.getMessage() != null ? var20.getMessage() : "Unable to fetch unidentified driving events.");
+            result.setMessage(
+                    var20.getMessage() != null ? var20.getMessage() : "Unable to fetch unidentified driving events.");
         }
 
         return result;
     }
 
-    public List<DriveringStatusViewDto> lookupUnIdentifiedEventsOperation(long from, long to, long vehicleId, long clientId) {
+    public List<DriveringStatusViewDto> lookupUnIdentifiedEventsOperation(long from, long to, long vehicleId,
+            long clientId) {
         return lookupUnIdentifiedEventsOperation(from, to, vehicleId, clientId, null, null);
     }
 
-    public List<DriveringStatusViewDto> lookupUnIdentifiedEventsOperation(long from, long to, long vehicleId, long clientId, String macAddress, String truckNoStr) {
+    public List<DriveringStatusViewDto> lookupUnIdentifiedEventsOperation(long from, long to, long vehicleId,
+            long clientId, String macAddress, String truckNoStr) {
         List<Criteria> criteriaList = new ArrayList();
         criteriaList.add(Criteria.where("utcDateTime").gte(from).lte(to));
         criteriaList.add(
-                new Criteria().orOperator(new Criteria[]{Criteria.where("driverId").in(new Object[]{0L, 0, "0"}), Criteria.where("driverId").exists(false)})
-        );
+                new Criteria().orOperator(new Criteria[]{Criteria.where("driverId").in(new Object[]{0L, 0, "0"}),
+            Criteria.where("driverId").exists(false)}));
         criteriaList.add(Criteria.where("isVisible").ne(0));
-        criteriaList.add(Criteria.where("isActive").ne(0));
+        criteriaList.add(Criteria.where("isActive").in(0, 2));
         criteriaList.add(
-                new Criteria().orOperator(new Criteria[]{Criteria.where("note").regex("Unidentified", "i"), Criteria.where("origin").is("Unidentified")})
-        );
-        if (macAddress != null && !macAddress.trim().isEmpty() && !macAddress.trim().equals("0") && !macAddress.trim().equalsIgnoreCase("null") && !macAddress.trim().equalsIgnoreCase("undefined")) {
+                new Criteria().orOperator(new Criteria[]{Criteria.where("note").regex("Unidentified", "i"),
+            Criteria.where("origin").is("Unidentified")}));
+        if (macAddress != null && !macAddress.trim().isEmpty() && !macAddress.trim().equals("0")
+                && !macAddress.trim().equalsIgnoreCase("null") && !macAddress.trim().equalsIgnoreCase("undefined")) {
             criteriaList.add(Criteria.where("macAddress").regex(macAddress.trim(), "i"));
         }
-        if (truckNoStr != null && !truckNoStr.trim().isEmpty() && !truckNoStr.trim().equals("0") && !truckNoStr.trim().equalsIgnoreCase("null") && !truckNoStr.trim().equalsIgnoreCase("undefined")) {
-            List<VehicleMaster> vehicles = (clientId > 0L) ? this.vehicleMasterRepo.findByClientId(clientId) : this.vehicleMasterRepo.findAll();
+        if (truckNoStr != null && !truckNoStr.trim().isEmpty() && !truckNoStr.trim().equals("0")
+                && !truckNoStr.trim().equalsIgnoreCase("null") && !truckNoStr.trim().equalsIgnoreCase("undefined")) {
+            List<VehicleMaster> vehicles = (clientId > 0L) ? this.vehicleMasterRepo.findByClientId(clientId)
+                    : this.vehicleMasterRepo.findAll();
             List<Object> matchingVehicleIds = new ArrayList<>();
             if (vehicles != null) {
                 for (VehicleMaster v : vehicles) {
-                    if (v != null && v.getVehicleNo() != null && v.getVehicleNo().toLowerCase().contains(truckNoStr.trim().toLowerCase())) {
+                    if (v != null && v.getVehicleNo() != null
+                            && v.getVehicleNo().toLowerCase().contains(truckNoStr.trim().toLowerCase())) {
                         if (v.getVehicleId() != null) {
                             matchingVehicleIds.add(v.getVehicleId());
                             matchingVehicleIds.add((long) v.getVehicleId().intValue());
@@ -4585,23 +5721,25 @@ public class DispatchServiceImpl implements DispatchService {
             }
             Criteria truckCriteria = Criteria.where("truckNo").regex(truckNoStr.trim(), "i");
             if (!matchingVehicleIds.isEmpty()) {
-                criteriaList.add(new Criteria().orOperator(truckCriteria, Criteria.where("vehicleId").in(matchingVehicleIds)));
+                criteriaList.add(
+                        new Criteria().orOperator(truckCriteria, Criteria.where("vehicleId").in(matchingVehicleIds)));
             } else {
                 criteriaList.add(truckCriteria);
             }
         }
         if (vehicleId > 0L) {
-            criteriaList.add(Criteria.where("vehicleId").in(new Object[]{vehicleId, (int) vehicleId, String.valueOf(vehicleId)}));
+            criteriaList.add(Criteria.where("vehicleId")
+                    .in(new Object[]{vehicleId, (int) vehicleId, String.valueOf(vehicleId)}));
             if (clientId > 0L) {
                 criteriaList.add(
                         new Criteria()
                                 .orOperator(
                                         new Criteria[]{
-                                            Criteria.where("clientId").in(new Object[]{clientId, (int) clientId, String.valueOf(clientId)}),
+                                            Criteria.where("clientId")
+                                                    .in(new Object[]{clientId, (int) clientId,
+                                                String.valueOf(clientId)}),
                                             Criteria.where("clientId").in(new Object[]{0L, 0, "0"})
-                                        }
-                                )
-                );
+                                        }));
             }
         } else if (clientId > 0L) {
             List<VehicleMaster> clientVehicles = this.vehicleMasterRepo.findByClientId(clientId);
@@ -4618,16 +5756,20 @@ public class DispatchServiceImpl implements DispatchService {
                         new Criteria()
                                 .orOperator(
                                         new Criteria[]{
-                                            Criteria.where("clientId").in(new Object[]{clientId, (int) clientId, String.valueOf(clientId)}),
+                                            Criteria.where("clientId")
+                                                    .in(new Object[]{clientId, (int) clientId,
+                                                String.valueOf(clientId)}),
                                             new Criteria()
                                                     .andOperator(
-                                                            new Criteria[]{Criteria.where("clientId").in(new Object[]{0L, 0, "0"}), Criteria.where("vehicleId").in(validVehicleIds)}
-                                                    )
-                                        }
-                                )
-                );
+                                                            new Criteria[]{
+                                                                Criteria.where("clientId")
+                                                                        .in(new Object[]{0L, 0, "0"}),
+                                                                Criteria.where("vehicleId")
+                                                                        .in(validVehicleIds)})
+                                        }));
             } else {
-                criteriaList.add(Criteria.where("clientId").in(new Object[]{clientId, (int) clientId, String.valueOf(clientId)}));
+                criteriaList.add(Criteria.where("clientId")
+                        .in(new Object[]{clientId, (int) clientId, String.valueOf(clientId)}));
             }
         }
 
@@ -4674,12 +5816,12 @@ public class DispatchServiceImpl implements DispatchService {
                     "isSplit",
                     "isVisible",
                     "isActive"
-                }
-        );
+                });
         Aggregation aggregation = Aggregation.newAggregation(
-                new AggregationOperation[]{matchOperation, projectionOperation, Aggregation.sort(Direction.ASC, new String[]{"utcDateTime"})}
-        );
-        return this.mongoTemplate.aggregate(aggregation, "drivering_status", DriveringStatusViewDto.class).getMappedResults();
+                new AggregationOperation[]{matchOperation, projectionOperation,
+                    Aggregation.sort(Direction.ASC, new String[]{"utcDateTime"})});
+        return this.mongoTemplate.aggregate(aggregation, "drivering_status", DriveringStatusViewDto.class)
+                .getMappedResults();
     }
 
     public static boolean imageExists(String imageUrl) {
@@ -4710,7 +5852,8 @@ public class DispatchServiceImpl implements DispatchService {
     }
 
     @Override
-    public ResultWrapper<List<DriveringStatusViewDto>> ViewDriveringStatusByDate(DriveringStatusCRUDDto driveringStatusCRUDDto, String tokenValid) {
+    public ResultWrapper<List<DriveringStatusViewDto>> ViewDriveringStatusByDate(
+            DriveringStatusCRUDDto driveringStatusCRUDDto, String tokenValid) {
         ResultWrapper<List<DriveringStatusViewDto>> result = new ResultWrapper<>();
         String sDebug = " >> ";
 
@@ -4751,14 +5894,33 @@ public class DispatchServiceImpl implements DispatchService {
                 Query query = new Query(Criteria.where("driverId").is(driverId).and("utcDateTime").lte(from));
                 query.limit(1);
                 query.with(pageableRequest);
-                driveringStatusViewDto = this.mongoTemplate.find(query, DriveringStatusViewDto.class, "drivering_status");
+                driveringStatusViewDto = this.mongoTemplate.find(query, DriveringStatusViewDto.class,
+                        "drivering_status");
             }
 
             sDebug = sDebug + driveringStatusViewDto.size() + " :: " + from + " : " + to + ",";
             if (driveringStatusViewDto.size() > 0) {
+                String dayDiagIndicator = "NA";
+                String dayMalfIndicator = "NA";
                 for (int i = 0; i < driveringStatusViewDto.size(); ++i) {
                     if (driveringStatusViewDto.get(i).getOrigin().equals("Unidentified")) {
                         unidentifiedLogEvent = "Yes";
+                    }
+                    
+                    String diag = driveringStatusViewDto.get(i).getDiagnosticIndicator();
+                    String status = driveringStatusViewDto.get(i).getStatus();
+                    
+                    if ((diag != null && diag.equals("1")) || "Diagnostic Logged".equalsIgnoreCase(status)) {
+                        dayDiagIndicator = "Yes";
+                    } else if (diag != null && diag.equals("0") && !dayDiagIndicator.equals("Yes")) {
+                        dayDiagIndicator = "No";
+                    }
+
+                    String malf = driveringStatusViewDto.get(i).getMalfunctionIndicator();
+                    if ((malf != null && malf.equals("1")) || "Malfunction Logged".equalsIgnoreCase(status)) {
+                        dayMalfIndicator = "Yes";
+                    } else if (malf != null && malf.equals("0") && !dayMalfIndicator.equals("Yes")) {
+                        dayMalfIndicator = "No";
                     }
                 }
 
@@ -4770,19 +5932,46 @@ public class DispatchServiceImpl implements DispatchService {
 
                     try {
                         sDebug = sDebug + "1,";
-                        EmployeeMaster empInfo = this.employeeMasterRepo.findByEmployeeId((int) driveringStatusViewDto.get(i).getDriverId());
+                        EmployeeMaster empInfo = this.employeeMasterRepo
+                                .findByEmployeeId((int) driveringStatusViewDto.get(i).getDriverId());
                         driverName = empInfo.getFirstName() + " " + empInfo.getLastName();
                         driveringStatusViewDto.get(i).setDriverName(driverName);
                         driveringStatusViewDto.get(i).setMobileNo(empInfo.getMobileNo());
                         driveringStatusViewDto.get(i).setEmail(empInfo.getEmail());
                         driveringStatusViewDto.get(i).setCompanyDriverId(empInfo.getUsername());
-                        driveringStatusViewDto.get(i).setCdlNo(empInfo.getCdlNo());
                         sDebug = sDebug + "2,";
-                        CountryMaster countryInfo = this.countryMasterRepo.findByCountryId((int) empInfo.getCdlCountryId());
-                        driveringStatusViewDto.get(i).setCountryName(countryInfo.getCountryName());
+                        if (driveringStatusViewDto.get(i).getCdlNo() == null
+                                || driveringStatusViewDto.get(i).getCdlNo().isEmpty()) {
+                            driveringStatusViewDto.get(i).setCdlNo(empInfo.getCdlNo());
+                        }
+                        if (driveringStatusViewDto.get(i).getCdlCountryId() == null
+                                || driveringStatusViewDto.get(i).getCdlCountryId() <= 0) {
+                            CountryMaster countryInfo = this.countryMasterRepo
+                                    .findByCountryId((int) empInfo.getCdlCountryId());
+                            if (countryInfo != null) {
+                                driveringStatusViewDto.get(i).setCountryName(countryInfo.getCountryName());
+                            }
+                        } else {
+                            CountryMaster countryInfo = this.countryMasterRepo
+                                    .findByCountryId(driveringStatusViewDto.get(i).getCdlCountryId());
+                            if (countryInfo != null) {
+                                driveringStatusViewDto.get(i).setCountryName(countryInfo.getCountryName());
+                            }
+                        }
                         sDebug = sDebug + "3,";
-                        StateMaster stateInfo = this.stateMasterRepo.findByStateId((int) empInfo.getCdlStateId());
-                        driveringStatusViewDto.get(i).setStateName(stateInfo.getStateName());
+                        if (driveringStatusViewDto.get(i).getCdlStateId() == null
+                                || driveringStatusViewDto.get(i).getCdlStateId() <= 0) {
+                            StateMaster stateInfo = this.stateMasterRepo.findByStateId((int) empInfo.getCdlStateId());
+                            if (stateInfo != null) {
+                                driveringStatusViewDto.get(i).setStateName(stateInfo.getStateName());
+                            }
+                        } else {
+                            StateMaster stateInfo = this.stateMasterRepo
+                                    .findByStateId(driveringStatusViewDto.get(i).getCdlStateId());
+                            if (stateInfo != null) {
+                                driveringStatusViewDto.get(i).setStateName(stateInfo.getStateName());
+                            }
+                        }
                         String exemptStatus = "No";
                         if (empInfo.getExempt().equals("active")) {
                             exemptStatus = "Yes";
@@ -4792,7 +5981,8 @@ public class DispatchServiceImpl implements DispatchService {
                         sDebug = sDebug + "4,";
                         VehicleMaster vehcileInfo = null;
                         if (driveringStatusViewDto.get(i).getVehicleId() > 0L) {
-                            vehcileInfo = this.vehicleMasterRepo.findByVehicleId((int) driveringStatusViewDto.get(i).getVehicleId());
+                            vehcileInfo = this.vehicleMasterRepo
+                                    .findByVehicleId((int) driveringStatusViewDto.get(i).getVehicleId());
                             driveringStatusViewDto.get(i).setTruckNo(vehcileInfo.getVehicleNo());
                             driveringStatusViewDto.get(i).setVin(vehcileInfo.getVin());
                         } else {
@@ -4803,7 +5993,8 @@ public class DispatchServiceImpl implements DispatchService {
                         sDebug = sDebug + "5,";
 
                         try {
-                            MainTerminalMaster mainTerminal = this.mainTerminalMasterRepo.findByMainTerminalId((int) empInfo.getMainTerminalId());
+                            MainTerminalMaster mainTerminal = this.mainTerminalMasterRepo
+                                    .findByMainTerminalId((int) empInfo.getMainTerminalId());
                             driveringStatusViewDto.get(i).setMainTerminalName(mainTerminal.getMainTerminalName());
                         } catch (Exception var49) {
                             var49.printStackTrace();
@@ -4823,19 +6014,23 @@ public class DispatchServiceImpl implements DispatchService {
                             driveringStatusViewDto.get(i).setCompanyName(clientInfo.getClientName());
                             driveringStatusViewDto.get(i).setDotNo(clientInfo.getDotNo());
                             driveringStatusViewDto.get(i).setCarrier(clientInfo.getClientName());
-                            countryInfo = this.countryMasterRepo.findByCountryId((int) clientInfo.getCountryId());
-                            String address = clientInfo.getStreet() + " " + clientInfo.getCity() + " " + countryInfo.getCountryName();
+                            CountryMaster countryInfo = this.countryMasterRepo
+                                    .findByCountryId((int) clientInfo.getCountryId());
+                            String address = clientInfo.getStreet() + " " + clientInfo.getCity() + " "
+                                    + countryInfo.getCountryName();
                             driveringStatusViewDto.get(i).setMainOffice(address);
                             driveringStatusViewDto.get(i).setPeriodStartingTime("00:00");
                         }
 
                         sDebug = sDebug + "7,";
-                        List<CertifiedLogViewDto> certifiedLogViewDto = this.lookupCertifiedLogDataOperation(from, to, driverId);
+                        List<CertifiedLogViewDto> certifiedLogViewDto = this.lookupCertifiedLogDataOperation(from, to,
+                                driverId);
                         if (certifiedLogViewDto.size() > 0) {
                             for (int c = 0; c < certifiedLogViewDto.size(); ++c) {
                                 sDebug = sDebug + "8,";
                                 if (certifiedLogViewDto.get(c).getCoDriverId() > 0L) {
-                                    empInfo = this.employeeMasterRepo.findByEmployeeId((int) certifiedLogViewDto.get(c).getCoDriverId());
+                                    empInfo = this.employeeMasterRepo
+                                            .findByEmployeeId((int) certifiedLogViewDto.get(c).getCoDriverId());
                                     driveringStatusViewDto.get(i).setCompanyCoDriverId(empInfo.getEmail());
                                     driverName = empInfo.getFirstName() + " " + empInfo.getLastName();
                                     driveringStatusViewDto.get(i).setCoDriverName(driverName);
@@ -4844,16 +6039,20 @@ public class DispatchServiceImpl implements DispatchService {
                                 driveringStatusViewDto.get(i).setCoDriverId(certifiedLogViewDto.get(c).getCoDriverId());
                                 driveringStatusViewDto.get(i).setCertifiedLogId(certifiedLogViewDto.get(c).get_id());
                                 driveringStatusViewDto.get(i).setTrailers(certifiedLogViewDto.get(c).getTrailers());
-                                driveringStatusViewDto.get(i).setShippingDocs(certifiedLogViewDto.get(c).getShippingDocs());
+                                driveringStatusViewDto.get(i)
+                                        .setShippingDocs(certifiedLogViewDto.get(c).getShippingDocs());
                                 sDebug = sDebug + "9,";
                                 if (certifiedLogViewDto.get(c).getCertifiedSignature() != null) {
-                                    driveringStatusViewDto.get(i).setCertifiedSignatureName(certifiedLogViewDto.get(c).getCertifiedSignature());
-                                    String setImagePath1 = url.concat(certifiedLogViewDto.get(c).getCertifiedSignature());
+                                    driveringStatusViewDto.get(i).setCertifiedSignatureName(
+                                            certifiedLogViewDto.get(c).getCertifiedSignature());
+                                    String setImagePath1 = url
+                                            .concat(certifiedLogViewDto.get(c).getCertifiedSignature());
                                     driveringStatusViewDto.get(i).setCertifiedSignature(setImagePath1);
                                 }
 
                                 sDebug = sDebug + "10,";
-                                vehcileInfo = this.vehicleMasterRepo.findByVehicleId((int) certifiedLogViewDto.get(c).getVehicleId());
+                                vehcileInfo = this.vehicleMasterRepo
+                                        .findByVehicleId((int) certifiedLogViewDto.get(c).getVehicleId());
                                 driveringStatusViewDto.get(i).setTruckNo(vehcileInfo.getVehicleNo());
                                 driveringStatusViewDto.get(i).setVin(vehcileInfo.getVin());
                             }
@@ -4863,7 +6062,8 @@ public class DispatchServiceImpl implements DispatchService {
                         }
 
                         try {
-                            MACAddressMaster macAddressData = this.macAddressMasterRepo.findByMACAddressMasterId(driveringStatusViewDto.get(i).getDriverId());
+                            MACAddressMaster macAddressData = this.macAddressMasterRepo
+                                    .findByMACAddressMasterId(driveringStatusViewDto.get(i).getDriverId());
                             driveringStatusViewDto.get(i).setMacAddress(macAddressData.getMacAddress());
                             driveringStatusViewDto.get(i).setSerialNo(macAddressData.getSerialNo());
                             driveringStatusViewDto.get(i).setVersion(macAddressData.getVersion());
@@ -4873,18 +6073,23 @@ public class DispatchServiceImpl implements DispatchService {
                         }
 
                         try {
-                            Pageable pageableRequest = PageRequest.of(0, 1, Sort.by(new String[]{"utcDateTime"}).ascending());
+                            Pageable pageableRequest = PageRequest.of(0, 1,
+                                    Sort.by(new String[]{"utcDateTime"}).ascending());
                             Query query = new Query();
-                            query.addCriteria(Criteria.where("utcDateTime").gte(from).lte(to).and("driverId").is(driverId).and("odometer").gt(0));
+                            query.addCriteria(Criteria.where("utcDateTime").gte(from).lte(to).and("driverId")
+                                    .is(driverId).and("odometer").gt(0));
                             query.with(pageableRequest);
-                            List<DriveringStatusViewDto> dsLogData = this.mongoTemplate.find(query, DriveringStatusViewDto.class, "drivering_status");
+                            List<DriveringStatusViewDto> dsLogData = this.mongoTemplate.find(query,
+                                    DriveringStatusViewDto.class, "drivering_status");
                             startOdometer = dsLogData.get(0).getOdometer();
                             startEngineHour = dsLogData.get(0).getEngineHour();
                             Pageable var86 = PageRequest.of(0, 1, Sort.by(new String[]{"utcDateTime"}).descending());
                             query = new Query();
-                            query.addCriteria(Criteria.where("utcDateTime").gte(from).lte(to).and("driverId").is(driverId).and("odometer").gt(0));
+                            query.addCriteria(Criteria.where("utcDateTime").gte(from).lte(to).and("driverId")
+                                    .is(driverId).and("odometer").gt(0));
                             query.with(var86);
-                            dsLogData = this.mongoTemplate.find(query, DriveringStatusViewDto.class, "drivering_status");
+                            dsLogData = this.mongoTemplate.find(query, DriveringStatusViewDto.class,
+                                    "drivering_status");
                             endOdometer = dsLogData.get(0).getOdometer();
                             endEngineHour = dsLogData.get(0).getEngineHour();
                             sDebug = sDebug + "Odometer : " + startOdometer + " :: " + endOdometer + ",";
@@ -4897,8 +6102,10 @@ public class DispatchServiceImpl implements DispatchService {
                             sDebug = sDebug + "Distance : " + distance + ",";
                             driveringStatusViewDto.get(i).setStartEngineHour(startEngineHour);
                             driveringStatusViewDto.get(i).setEndEngineHour(endEngineHour);
-                            driveringStatusViewDto.get(i).setStartOdometer(Double.valueOf(String.format("%.2f", startOdometer)));
-                            driveringStatusViewDto.get(i).setEndOdometer(Double.valueOf(String.format("%.2f", endOdometer)));
+                            driveringStatusViewDto.get(i)
+                                    .setStartOdometer(Double.valueOf(String.format("%.2f", startOdometer)));
+                            driveringStatusViewDto.get(i)
+                                    .setEndOdometer(Double.valueOf(String.format("%.2f", endOdometer)));
                             driveringStatusViewDto.get(i).setDistance(Double.valueOf(String.format("%.2f", distance)));
                         } catch (Exception var50) {
                             var50.printStackTrace();
@@ -4908,17 +6115,16 @@ public class DispatchServiceImpl implements DispatchService {
                         List<ELDSettings> settings = this.eldSettingsRepo.findAndViewBySettingId(1);
                         if (settings.size() > 0) {
                             driveringStatusViewDto.get(i).setEldProvider(settings.get(0).getEldProvider());
-                            driveringStatusViewDto.get(i).setDiagnosticIndicator("NA");
-                            driveringStatusViewDto.get(i).setMalfunctionIndicator("NA");
                             driveringStatusViewDto.get(i).setEldRegistrationId(settings.get(0).getEldRegistrationId());
                             driveringStatusViewDto.get(i).setEldIdentifier(settings.get(0).getEldIdentifier());
                         } else {
                             driveringStatusViewDto.get(i).setEldProvider("gbt-usa");
-                            driveringStatusViewDto.get(i).setDiagnosticIndicator("NA");
-                            driveringStatusViewDto.get(i).setMalfunctionIndicator("NA");
                             driveringStatusViewDto.get(i).setEldRegistrationId("NA");
                             driveringStatusViewDto.get(i).setEldIdentifier("NA");
                         }
+
+                        driveringStatusViewDto.get(i).setDiagnosticIndicator(dayDiagIndicator);
+                        driveringStatusViewDto.get(i).setMalfunctionIndicator(dayMalfIndicator);
 
                         driveringStatusViewDtoData.add(driveringStatusViewDto.get(i));
                     } catch (Exception var51) {
@@ -4985,7 +6191,8 @@ public class DispatchServiceImpl implements DispatchService {
     }
 
     @Override
-    public ResultWrapper<ViewDriverLogWithDetailDto> ViewDriverLogWithDetails(DriveringStatusCRUDDto driveringStatusCRUDDto) {
+    public ResultWrapper<ViewDriverLogWithDetailDto> ViewDriverLogWithDetails(
+            DriveringStatusCRUDDto driveringStatusCRUDDto) {
         ResultWrapper<ViewDriverLogWithDetailDto> result = new ResultWrapper<>();
 
         try {
@@ -5010,6 +6217,58 @@ public class DispatchServiceImpl implements DispatchService {
                     driverLog.get(i).setDriverName(driverName);
                     driverLog.get(i).setMobileNo(empInfo.getMobileNo());
                     driverLog.get(i).setEmail(empInfo.getEmail());
+
+                    // CDL Number
+                    String cdlNo = driverLog.get(i).getCdlNo();
+                    if (cdlNo == null || cdlNo.isEmpty()) {
+                        cdlNo = empInfo.getCdlNo();
+                    }
+                    driverLog.get(i).setCdlNo(cdlNo);
+
+                    // CDL State
+                    Integer cdlStateId = driverLog.get(i).getCdlStateId();
+                    if (cdlStateId == null || cdlStateId <= 0) {
+                        cdlStateId = (int) empInfo.getCdlStateId();
+                    }
+                    if (cdlStateId > 0) {
+                        StateMaster stateInfo = this.stateMasterRepo.findByStateId(cdlStateId);
+                        if (stateInfo != null) {
+                            driverLog.get(i).setStateName(stateInfo.getStateName());
+                            driverLog.get(i).setCdlStateCode(stateInfo.getStateCode());
+                            driverLog.get(i).setCdlStateId(cdlStateId);
+                        }
+                    }
+
+                    // CDL Country
+                    Integer cdlCountryId = driverLog.get(i).getCdlCountryId();
+                    if (cdlCountryId == null || cdlCountryId <= 0) {
+                        cdlCountryId = (int) empInfo.getCdlCountryId();
+                    }
+                    if (cdlCountryId > 0) {
+                        CountryMaster countryInfo = this.countryMasterRepo.findByCountryId(cdlCountryId);
+                        if (countryInfo != null) {
+                            driverLog.get(i).setCountryName(countryInfo.getCountryName());
+                            driverLog.get(i).setCdlCountryId(cdlCountryId);
+                        }
+                    }
+
+                    String diagIndicator = driverLog.get(i).getDiagnosticIndicator();
+                    if (diagIndicator != null && diagIndicator.equals("1")) {
+                        driverLog.get(i).setDiagnosticIndicator("Yes");
+                    } else if (diagIndicator != null && diagIndicator.equals("0")) {
+                        driverLog.get(i).setDiagnosticIndicator("No");
+                    } else if (diagIndicator == null || diagIndicator.isEmpty()) {
+                        driverLog.get(i).setDiagnosticIndicator("NA");
+                    }
+
+                    String malfIndicator = driverLog.get(i).getMalfunctionIndicator();
+                    if (malfIndicator != null && malfIndicator.equals("1")) {
+                        driverLog.get(i).setMalfunctionIndicator("Yes");
+                    } else if (malfIndicator != null && malfIndicator.equals("0")) {
+                        driverLog.get(i).setMalfunctionIndicator("No");
+                    } else if (malfIndicator == null || malfIndicator.isEmpty()) {
+                        driverLog.get(i).setMalfunctionIndicator("NA");
+                    }
                 }
 
                 viewDriverLogWithDetailDto.setDriverLog(driverLog);
@@ -5030,7 +6289,8 @@ public class DispatchServiceImpl implements DispatchService {
     }
 
     @Override
-    public ResultWrapper<DriverLogWithLoginLogViewDto> ViewDriverLogWithLoginLog(DriveringStatusCRUDDto driveringStatusCRUDDto, String tokenValid) {
+    public ResultWrapper<DriverLogWithLoginLogViewDto> ViewDriverLogWithLoginLog(
+            DriveringStatusCRUDDto driveringStatusCRUDDto, String tokenValid) {
         ResultWrapper<DriverLogWithLoginLogViewDto> result = new ResultWrapper<>();
 
         try {
@@ -5053,6 +6313,40 @@ public class DispatchServiceImpl implements DispatchService {
                     EmployeeMaster empInfo = this.employeeMasterRepo.findByEmployeeId((int) driverId);
                     driverName = empInfo.getFirstName() + " " + empInfo.getLastName();
                     driverLog.get(i).setDriverName(driverName);
+
+                    // CDL Number
+                    String cdlNo = driverLog.get(i).getCdlNo();
+                    if (cdlNo == null || cdlNo.isEmpty()) {
+                        cdlNo = empInfo.getCdlNo();
+                    }
+                    driverLog.get(i).setCdlNo(cdlNo);
+
+                    // CDL State
+                    Integer cdlStateId = driverLog.get(i).getCdlStateId();
+                    if (cdlStateId == null || cdlStateId <= 0) {
+                        cdlStateId = (int) empInfo.getCdlStateId();
+                    }
+                    if (cdlStateId > 0) {
+                        StateMaster stateInfo = this.stateMasterRepo.findByStateId(cdlStateId);
+                        if (stateInfo != null) {
+                            driverLog.get(i).setStateName(stateInfo.getStateName());
+                            driverLog.get(i).setCdlStateCode(stateInfo.getStateCode());
+                            driverLog.get(i).setCdlStateId(cdlStateId);
+                        }
+                    }
+
+                    // CDL Country
+                    Integer cdlCountryId = driverLog.get(i).getCdlCountryId();
+                    if (cdlCountryId == null || cdlCountryId <= 0) {
+                        cdlCountryId = (int) empInfo.getCdlCountryId();
+                    }
+                    if (cdlCountryId > 0) {
+                        CountryMaster countryInfo = this.countryMasterRepo.findByCountryId(cdlCountryId);
+                        if (countryInfo != null) {
+                            driverLog.get(i).setCountryName(countryInfo.getCountryName());
+                            driverLog.get(i).setCdlCountryId(cdlCountryId);
+                        }
+                    }
                 }
 
                 List<LoginLog> loginLog = this.lookupLoginLogDataOperation(from, to, driverId, "loginDateTime");
@@ -5077,11 +6371,11 @@ public class DispatchServiceImpl implements DispatchService {
 
     public List<LoginLog> lookupLoginLogDataOperation(long from, long to, long driverId, String loginType) {
         MatchOperation filter = Aggregation.match(
-                Criteria.where(loginType).gte(from).lte(to).and("employeeId").is(driverId).and("loginType").is("app").and("isVisible").is(1)
-        );
+                Criteria.where(loginType).gte(from).lte(to).and("employeeId").is(driverId).and("loginType").is("app")
+                        .and("isVisible").is(1));
         ProjectionOperation projectStage = Aggregation.project(
-                new String[]{"employeeId", "loginDateTime", "logoutDateTime", "receivedTimestamp", "isCoDriver", "_id"}
-        );
+                new String[]{"employeeId", "loginDateTime", "logoutDateTime", "receivedTimestamp", "isCoDriver",
+                    "_id"});
         Aggregation aggregation = Aggregation.newAggregation(new AggregationOperation[]{filter, projectStage});
         return this.mongoTemplate.aggregate(aggregation, "login_log", LoginLog.class).getMappedResults();
     }
@@ -5132,12 +6426,12 @@ public class DispatchServiceImpl implements DispatchService {
         if (userId == 0) {
             filter = Aggregation.match(Criteria.where("loginDateTime").gte(from).lte(to).and("loginType").is("web"));
         } else {
-            filter = Aggregation.match(Criteria.where("loginDateTime").gte(from).lte(to).and("userId").is(userId).and("loginType").is("web"));
+            filter = Aggregation.match(Criteria.where("loginDateTime").gte(from).lte(to).and("userId").is(userId)
+                    .and("loginType").is("web"));
         }
 
         ProjectionOperation projectStage = Aggregation.project(
-                new String[]{"userId", "loginDateTime", "logoutDateTime", "receivedTimestamp", "isCoDriver", "_id"}
-        );
+                new String[]{"userId", "loginDateTime", "logoutDateTime", "receivedTimestamp", "isCoDriver", "_id"});
         Aggregation aggregation = Aggregation.newAggregation(new AggregationOperation[]{filter, projectStage});
         return this.mongoTemplate.aggregate(aggregation, "login_log", LoginLogViewDto.class).getMappedResults();
     }
@@ -5239,28 +6533,34 @@ public class DispatchServiceImpl implements DispatchService {
             }
 
             Pageable pageableRequest = PageRequest.of(0, 1, Sort.by(new String[]{"utcDateTime"}).ascending());
-            Query queryData = new Query(Criteria.where("driverId").is(driverId).and("utcDateTime").gt(dateTime).and("isVoilation").is(0).and("isVisible").is(1));
+            Query queryData = new Query(Criteria.where("driverId").is(driverId).and("utcDateTime").gt(dateTime)
+                    .and("isVoilation").is(0).and("isVisible").is(1));
             queryData.limit(1);
             queryData.with(pageableRequest);
-            List<DriveringStatusViewDto> driveringStatusViewDtoData = this.mongoTemplate.find(queryData, DriveringStatusViewDto.class, "drivering_status");
+            List<DriveringStatusViewDto> driveringStatusViewDtoData = this.mongoTemplate.find(queryData,
+                    DriveringStatusViewDto.class, "drivering_status");
             if (driveringStatusViewDtoData.size() > 0) {
                 nextLogUtcDateTime = driveringStatusViewDtoData.get(0).getUtcDateTime();
             } else {
                 nextLogUtcDateTime = lToDate;
             }
 
-            LocalDateTime nexLogDateTime1 = Instant.ofEpochMilli(nextLogUtcDateTime).atZone(ZoneId.systemDefault()).toLocalDateTime();
+            LocalDateTime nexLogDateTime1 = Instant.ofEpochMilli(nextLogUtcDateTime).atZone(ZoneId.systemDefault())
+                    .toLocalDateTime();
             LocalDate nextLogDate1 = nexLogDateTime1.toLocalDate();
             LocalDateTime nextLogEndOfDay1 = nextLogDate1.atTime(23, 59, 59, 999000000);
             nextLogUtcDateTime = nextLogEndOfDay1.atZone(ZoneId.systemDefault()).toInstant().toEpochMilli();
-            LocalDateTime nexLogDateTime = Instant.ofEpochMilli(dateTime).atZone(ZoneId.systemDefault()).toLocalDateTime();
+            LocalDateTime nexLogDateTime = Instant.ofEpochMilli(dateTime).atZone(ZoneId.systemDefault())
+                    .toLocalDateTime();
             LocalDate nextLogDate = nexLogDateTime.toLocalDate();
             LocalDateTime nextLogEndOfDay = nextLogDate.atTime(23, 59, 59, 999000000);
             lNextLogEndOfDay = nextLogEndOfDay.atZone(ZoneId.systemDefault()).toInstant().toEpochMilli();
             LocalDateTime startOfDay1 = nextLogDate.atStartOfDay();
             long lStartOfDay = startOfDay1.atZone(ZoneId.systemDefault()).toInstant().toEpochMilli();
-            long removeCount = this.driveringStatusRepo.deleteAllDriveringStatusVoilation(driverId, midnightTimestamp, nextLogUtcDateTime, 1);
-            removeCount = this.driveringStatusRepo.deleteAllDriveringStatusVoilation(driverId, lStartOfDay, lNextLogEndOfDay, 1);
+            long removeCount = this.driveringStatusRepo.deleteAllDriveringStatusVoilation(driverId, midnightTimestamp,
+                    nextLogUtcDateTime, 1);
+            removeCount = this.driveringStatusRepo.deleteAllDriveringStatusVoilation(driverId, lStartOfDay,
+                    lNextLogEndOfDay, 1);
             boolean isVoilationDeleted = false;
             ZoneId zone = ZoneId.systemDefault();
             LocalDate date1 = Instant.ofEpochMilli(midnightTimestamp).atZone(zone).toLocalDate();
@@ -5272,10 +6572,12 @@ public class DispatchServiceImpl implements DispatchService {
                 long newMidnightTimestamp = date3.atStartOfDay(zone).toInstant().toEpochMilli();
                 LocalDateTime endOfDay1 = date1.atTime(23, 59, 59, 999000000);
                 long newEndOfDayTimestamp = endOfDay1.atZone(zone).toInstant().toEpochMilli();
-                this.CheckAllVoilations(driverId, newMidnightTimestamp, newEndOfDayTimestamp, lToDate15, logShift, logDays);
+                this.CheckAllVoilations(driverId, newMidnightTimestamp, newEndOfDayTimestamp, lToDate15, logShift,
+                        logDays);
             }
 
             this.UpdateDriverSequenceId(driverId, dateTime);
+            this.invalidateCertifiedLogForDate(driverId, dateTime);
             result.setResult("Updated");
             result.setStatus(Result.SUCCESS);
             result.setMessage("Driver Log Transfer Successfully");
@@ -5324,21 +6626,25 @@ public class DispatchServiceImpl implements DispatchService {
             long l8HourDateTime = ldtAdd8HourDateTime.atZone(ZoneId.systemDefault()).toInstant().toEpochMilli();
             long nextLogUtcDateTime = 0L;
             Pageable pageableRequest = PageRequest.of(0, 1, Sort.by(new String[]{"utcDateTime"}).ascending());
-            Query queryData = new Query(Criteria.where("driverId").is(driverId).and("utcDateTime").gt(lastUtcDateTime).and("isVoilation").is(0));
+            Query queryData = new Query(Criteria.where("driverId").is(driverId).and("utcDateTime").gt(lastUtcDateTime)
+                    .and("isVoilation").is(0));
             queryData.limit(1);
             queryData.with(pageableRequest);
-            List<DriveringStatusViewDto> driveringStatusViewDtoData = this.mongoTemplate.find(queryData, DriveringStatusViewDto.class, "drivering_status");
+            List<DriveringStatusViewDto> driveringStatusViewDtoData = this.mongoTemplate.find(queryData,
+                    DriveringStatusViewDto.class, "drivering_status");
             if (driveringStatusViewDtoData.size() > 0) {
                 nextLogUtcDateTime = driveringStatusViewDtoData.get(0).getUtcDateTime();
             } else {
                 nextLogUtcDateTime = lToDate;
             }
 
-            LocalDateTime nexLogDateTime1 = Instant.ofEpochMilli(nextLogUtcDateTime).atZone(ZoneId.systemDefault()).toLocalDateTime();
+            LocalDateTime nexLogDateTime1 = Instant.ofEpochMilli(nextLogUtcDateTime).atZone(ZoneId.systemDefault())
+                    .toLocalDateTime();
             LocalDate nextLogDate1 = nexLogDateTime1.toLocalDate();
             LocalDateTime nextLogEndOfDay1 = nextLogDate1.atTime(23, 59, 59, 999000000);
             nextLogUtcDateTime = nextLogEndOfDay1.atZone(ZoneId.systemDefault()).toInstant().toEpochMilli();
-            LocalDateTime nexLogDateTime = Instant.ofEpochMilli(lastUtcDateTime).atZone(ZoneId.systemDefault()).toLocalDateTime();
+            LocalDateTime nexLogDateTime = Instant.ofEpochMilli(lastUtcDateTime).atZone(ZoneId.systemDefault())
+                    .toLocalDateTime();
             LocalDate nextLogDate = nexLogDateTime.toLocalDate();
             LocalDateTime nextLogEndOfDay = nextLogDate.atTime(23, 59, 59, 999000000);
             long lNextLogEndOfDay = nextLogEndOfDay.atZone(ZoneId.systemDefault()).toInstant().toEpochMilli();
@@ -5346,8 +6652,10 @@ public class DispatchServiceImpl implements DispatchService {
             long lStartOfDay = startOfDay1.atZone(ZoneId.systemDefault()).toInstant().toEpochMilli();
             boolean isVoilationDeleted = false;
             if (!logStatus.equals("Certified") && !logStatus.equals("Login") && !logStatus.equals("Logout")) {
-                long removeCount = this.driveringStatusRepo.deleteAllDriveringStatusVoilation(driverId, midnightTimestamp, nextLogUtcDateTime, 1);
-                removeCount = this.driveringStatusRepo.deleteAllDriveringStatusVoilation(driverId, lStartOfDay, lNextLogEndOfDay, 1);
+                long removeCount = this.driveringStatusRepo.deleteAllDriveringStatusVoilation(driverId,
+                        midnightTimestamp, nextLogUtcDateTime, 1);
+                removeCount = this.driveringStatusRepo.deleteAllDriveringStatusVoilation(driverId, lStartOfDay,
+                        lNextLogEndOfDay, 1);
             }
 
             LocalDateTime ldtAdd11HourDateTime = LocalDateTime.parse(dateTime, formatter);
@@ -5356,7 +6664,8 @@ public class DispatchServiceImpl implements DispatchService {
             LocalDateTime ldtAdd14HourDateTime = LocalDateTime.parse(dateTime, formatter);
             ldtAdd14HourDateTime = ldtAdd14HourDateTime.plusHours(14L);
             long l14HourDateTime = ldtAdd14HourDateTime.atZone(ZoneId.systemDefault()).toInstant().toEpochMilli();
-            String sAddress = this.GetGoogleAddress(driveringStatusLogViewDto.getLattitude(), driveringStatusLogViewDto.getLongitude());
+            String sAddress = this.GetGoogleAddress(driveringStatusLogViewDto.getLattitude(),
+                    driveringStatusLogViewDto.getLongitude());
             Query query = new Query();
             query.addCriteria(Criteria.where("_id").is(logStatusId));
             Update update = new Update();
@@ -5401,7 +6710,8 @@ public class DispatchServiceImpl implements DispatchService {
             update.set("engineHour", driveringStatusLogViewDto.getEngineHour());
             update.set("note", driveringStatusLogViewDto.getNote());
             this.mongoTemplate.updateMulti(query, update, DriverStatusLog.class);
-            this.EditDriverLog(driverId, lDateTime, midnightTimestamp, lToDate, lToDate15, totalSeconds, lastUtcDateTime, logStatus, logShift, logDays);
+            this.EditDriverLog(driverId, lDateTime, midnightTimestamp, lToDate, lToDate15, totalSeconds,
+                    lastUtcDateTime, logStatus, logShift, logDays);
             ZoneId zone = ZoneId.systemDefault();
             LocalDate date1 = Instant.ofEpochMilli(midnightTimestamp).atZone(zone).toLocalDate();
             LocalDate date2 = Instant.ofEpochMilli(lNextLogEndOfDay).atZone(zone).toLocalDate();
@@ -5417,6 +6727,7 @@ public class DispatchServiceImpl implements DispatchService {
             }
 
             this.UpdateDriverSequenceId(driverId, lDateTime);
+            this.invalidateCertifiedLogForDate(driverId, lDateTime);
             result.setResult("Updated");
             result.setStatus(Result.SUCCESS);
             result.setMessage("Driver Log Transfer Successfully" + sDebug);
@@ -5482,22 +6793,27 @@ public class DispatchServiceImpl implements DispatchService {
                     ldtAdd8HourDateTime = ldtAdd8HourDateTime.plusHours(8L);
                     long l8HourDateTime = ldtAdd8HourDateTime.atZone(ZoneId.systemDefault()).toInstant().toEpochMilli();
                     long nextLogUtcDateTime = 0L;
-                    Pageable pageableRequest = PageRequest.of(0, 1, Sort.by(new String[]{"utcDateTime"}).ascending());
-                    Query queryData = new Query(Criteria.where("driverId").is(driverId).and("utcDateTime").gt(lastUtcDateTime).and("isVoilation").is(0));
+                    Pageable pageableRequest = PageRequest.of(0, 1,
+                            Sort.by(new String[]{"utcDateTime"}).ascending());
+                    Query queryData = new Query(Criteria.where("driverId").is(driverId).and("utcDateTime")
+                            .gt(lastUtcDateTime).and("isVoilation").is(0));
                     queryData.limit(1);
                     queryData.with(pageableRequest);
-                    List<DriveringStatusViewDto> driveringStatusViewDtoData = this.mongoTemplate.find(queryData, DriveringStatusViewDto.class, "drivering_status");
+                    List<DriveringStatusViewDto> driveringStatusViewDtoData = this.mongoTemplate.find(queryData,
+                            DriveringStatusViewDto.class, "drivering_status");
                     if (driveringStatusViewDtoData.size() > 0) {
                         nextLogUtcDateTime = driveringStatusViewDtoData.get(0).getUtcDateTime();
                     } else {
                         nextLogUtcDateTime = lToDate;
                     }
 
-                    LocalDateTime nexLogDateTime1 = Instant.ofEpochMilli(nextLogUtcDateTime).atZone(ZoneId.systemDefault()).toLocalDateTime();
+                    LocalDateTime nexLogDateTime1 = Instant.ofEpochMilli(nextLogUtcDateTime)
+                            .atZone(ZoneId.systemDefault()).toLocalDateTime();
                     LocalDate nextLogDate1 = nexLogDateTime1.toLocalDate();
                     LocalDateTime nextLogEndOfDay1 = nextLogDate1.atTime(23, 59, 59, 999000000);
                     nextLogUtcDateTime = nextLogEndOfDay1.atZone(ZoneId.systemDefault()).toInstant().toEpochMilli();
-                    LocalDateTime nexLogDateTime = Instant.ofEpochMilli(lastUtcDateTime).atZone(ZoneId.systemDefault()).toLocalDateTime();
+                    LocalDateTime nexLogDateTime = Instant.ofEpochMilli(lastUtcDateTime).atZone(ZoneId.systemDefault())
+                            .toLocalDateTime();
                     LocalDate nextLogDate = nexLogDateTime.toLocalDate();
                     LocalDateTime nextLogEndOfDay = nextLogDate.atTime(23, 59, 59, 999000000);
                     long lNextLogEndOfDay = nextLogEndOfDay.atZone(ZoneId.systemDefault()).toInstant().toEpochMilli();
@@ -5505,17 +6821,22 @@ public class DispatchServiceImpl implements DispatchService {
                     long lStartOfDay = startOfDay1.atZone(ZoneId.systemDefault()).toInstant().toEpochMilli();
                     boolean isVoilationDeleted = false;
                     if (!logStatus.equals("Certified") && !logStatus.equals("Login") && !logStatus.equals("Logout")) {
-                        long removeCount = this.driveringStatusRepo.deleteAllDriveringStatusVoilation(driverId, midnightTimestamp, nextLogUtcDateTime, 1);
-                        removeCount = this.driveringStatusRepo.deleteAllDriveringStatusVoilation(driverId, lStartOfDay, lNextLogEndOfDay, 1);
+                        long removeCount = this.driveringStatusRepo.deleteAllDriveringStatusVoilation(driverId,
+                                midnightTimestamp, nextLogUtcDateTime, 1);
+                        removeCount = this.driveringStatusRepo.deleteAllDriveringStatusVoilation(driverId, lStartOfDay,
+                                lNextLogEndOfDay, 1);
                     }
 
                     LocalDateTime ldtAdd11HourDateTime = LocalDateTime.parse(dateTime, formatter);
                     ldtAdd11HourDateTime = ldtAdd11HourDateTime.plusHours(11L);
-                    long l11HourDateTime = ldtAdd11HourDateTime.atZone(ZoneId.systemDefault()).toInstant().toEpochMilli();
+                    long l11HourDateTime = ldtAdd11HourDateTime.atZone(ZoneId.systemDefault()).toInstant()
+                            .toEpochMilli();
                     LocalDateTime ldtAdd14HourDateTime = LocalDateTime.parse(dateTime, formatter);
                     ldtAdd14HourDateTime = ldtAdd14HourDateTime.plusHours(14L);
-                    long l14HourDateTime = ldtAdd14HourDateTime.atZone(ZoneId.systemDefault()).toInstant().toEpochMilli();
-                    String sAddress = this.GetGoogleAddress(driveringStatusLogViewDto.getLattitude(), driveringStatusLogViewDto.getLongitude());
+                    long l14HourDateTime = ldtAdd14HourDateTime.atZone(ZoneId.systemDefault()).toInstant()
+                            .toEpochMilli();
+                    String sAddress = this.GetGoogleAddress(driveringStatusLogViewDto.getLattitude(),
+                            driveringStatusLogViewDto.getLongitude());
                     Query query = new Query();
                     query.addCriteria(Criteria.where("_id").is(logStatusId));
                     Update update = new Update();
@@ -5561,7 +6882,8 @@ public class DispatchServiceImpl implements DispatchService {
                     update.set("note", driveringStatusLogViewDto.getNote());
                     this.mongoTemplate.updateMulti(query, update, DriverStatusLog.class);
                     if (isDvirShift.equals("true")) {
-                        List<DVIRDataCRUDDto> dvirDataViewDto = this.lookupDVIRDataOperation(lStartOfDay, lNextLogEndOfDay, driverId);
+                        List<DVIRDataCRUDDto> dvirDataViewDto = this.lookupDVIRDataOperation(lStartOfDay,
+                                lNextLogEndOfDay, driverId);
                         if (dvirDataViewDto.size() > 0) {
                             ObjectId objId = new ObjectId(dvirDataViewDto.get(0).get_id());
                             query = new Query();
@@ -5573,18 +6895,21 @@ public class DispatchServiceImpl implements DispatchService {
                         }
                     }
 
-                    this.EditDriverLog(driverId, lDateTime, midnightTimestamp, lToDate, lToDate15, totalSeconds, lastUtcDateTime, logStatus, logShift, logDays);
+                    this.EditDriverLog(driverId, lDateTime, midnightTimestamp, lToDate, lToDate15, totalSeconds,
+                            lastUtcDateTime, logStatus, logShift, logDays);
                     ZoneId zone = ZoneId.systemDefault();
                     LocalDate date1 = Instant.ofEpochMilli(midnightTimestamp).atZone(zone).toLocalDate();
                     LocalDate date2 = Instant.ofEpochMilli(lNextLogEndOfDay).atZone(zone).toLocalDate();
                     LocalDate date3 = Instant.ofEpochMilli(nextLogUtcDateTime).atZone(zone).toLocalDate();
                     if (date1.isBefore(date3)) {
-                        this.CheckAllVoilations(driverId, midnightTimestamp, nextLogUtcDateTime, lToDate15, logShift, logDays);
+                        this.CheckAllVoilations(driverId, midnightTimestamp, nextLogUtcDateTime, lToDate15, logShift,
+                                logDays);
                     } else {
                         long newMidnightTimestamp = date3.atStartOfDay(zone).toInstant().toEpochMilli();
                         LocalDateTime endOfDay1 = date1.atTime(23, 59, 59, 999000000);
                         long newEndOfDayTimestamp = endOfDay1.atZone(zone).toInstant().toEpochMilli();
-                        this.CheckAllVoilations(driverId, newMidnightTimestamp, newEndOfDayTimestamp, lToDate15, logShift, logDays);
+                        this.CheckAllVoilations(driverId, newMidnightTimestamp, newEndOfDayTimestamp, lToDate15,
+                                logShift, logDays);
                     }
 
                     if (date1.isBefore(date2)) {
@@ -5597,6 +6922,7 @@ public class DispatchServiceImpl implements DispatchService {
                     }
 
                     this.UpdateDriverSequenceId(driverId, lDateTime);
+                    this.invalidateCertifiedLogForDate(driverId, lDateTime);
                 }
 
                 result.setResult("Updated");
@@ -5618,12 +6944,15 @@ public class DispatchServiceImpl implements DispatchService {
         for (int i = 0; i < driveringStatusList.size(); ++i) {
             if ("ONDRIVE".equalsIgnoreCase(driveringStatusList.get(i).getStatus())) {
                 long utcDateTime = driveringStatusList.get(i).getUtcDateTime();
-                String formattedTime = Instant.ofEpochMilli(utcDateTime).atZone(ZoneId.systemDefault()).format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss"));
+                String formattedTime = Instant.ofEpochMilli(utcDateTime).atZone(ZoneId.systemDefault())
+                        .format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss"));
                 LocalDate logDate = Instant.ofEpochMilli(utcDateTime).atZone(ZoneId.systemDefault()).toLocalDate();
                 long startOfDayMillis = logDate.atStartOfDay(ZoneId.systemDefault()).toInstant().toEpochMilli();
-                long endOfDayMillis = logDate.atTime(23, 59, 59, 999000000).atZone(ZoneId.systemDefault()).toInstant().toEpochMilli();
+                long endOfDayMillis = logDate.atTime(23, 59, 59, 999000000).atZone(ZoneId.systemDefault()).toInstant()
+                        .toEpochMilli();
                 if (!processedDates.contains(logDate)) {
-                    List<DVIRDataCRUDDto> dvirDataViewDto = this.lookupDVIRDataOperation(startOfDayMillis, endOfDayMillis, driverId);
+                    List<DVIRDataCRUDDto> dvirDataViewDto = this.lookupDVIRDataOperation(startOfDayMillis,
+                            endOfDayMillis, driverId);
                     if (dvirDataViewDto.size() > 0) {
                         processedDates.add(logDate);
                         ObjectId objId = new ObjectId(dvirDataViewDto.get(0).get_id());
@@ -5639,21 +6968,25 @@ public class DispatchServiceImpl implements DispatchService {
         }
     }
 
-    public void SaveVoilations(DriveringStatusLogViewDto driveringStatusViewDto, String logType, int voilationHour, long voilationUtcDateTime) {
+    public void SaveVoilations(DriveringStatusLogViewDto driveringStatusViewDto, String logType, int voilationHour,
+            long voilationUtcDateTime) {
         String sDebug = "";
 
         try {
             Instant instant = Instant.now();
-            LocalDateTime ldtDateTime = Instant.ofEpochMilli(voilationUtcDateTime).atZone(ZoneOffset.UTC).toLocalDateTime();
+            LocalDateTime ldtDateTime = Instant.ofEpochMilli(voilationUtcDateTime).atZone(ZoneOffset.UTC)
+                    .toLocalDateTime();
             String dateTime = ldtDateTime.format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss"));
             long remainingDutyTime = Long.parseLong(driveringStatusViewDto.getRemainingDutyTime());
             long remainingWeeklyTime = Long.parseLong(driveringStatusViewDto.getRemainingWeeklyTime());
             long remainingDriveTime = Long.parseLong(driveringStatusViewDto.getRemainingDriveTime());
             long remainingSleepTime = Long.parseLong(driveringStatusViewDto.getRemainingSleepTime());
-            sDebug = sDebug + " OD | " + remainingDutyTime + " ODR | " + remainingDriveTime + " Cycle | " + remainingWeeklyTime + "\n";
+            sDebug = sDebug + " OD | " + remainingDutyTime + " ODR | " + remainingDriveTime + " Cycle | "
+                    + remainingWeeklyTime + "\n";
             this.SaveLog(sDebug);
             DriveringStatus driveringStatus = new DriveringStatus();
             driveringStatus.setDriverId(driveringStatusViewDto.getDriverId());
+            this.populateCdlSnapshot(driveringStatus);
             driveringStatus.setVehicleId(driveringStatusViewDto.getVehicleId());
             driveringStatus.setClientId(driveringStatusViewDto.getClientId());
             driveringStatus.setStatus("Voilation");
@@ -5687,7 +7020,8 @@ public class DispatchServiceImpl implements DispatchService {
             Query queryLog = new Query(Criteria.where("driverId").is(driveringStatus.getDriverId()));
             queryLog.limit(1);
             queryLog.with(pageableRequest);
-            List<DriveringStatusViewDto> dsDataLog = this.mongoTemplate.find(queryLog, DriveringStatusViewDto.class, "drivering_status");
+            List<DriveringStatusViewDto> dsDataLog = this.mongoTemplate.find(queryLog, DriveringStatusViewDto.class,
+                    "drivering_status");
             DriverStatusLog driverStatusLog = new DriverStatusLog();
             driverStatusLog.setStatusId(0L);
             driverStatusLog.setLogDataId(dsDataLog.get(0).get_id());
@@ -5708,7 +7042,8 @@ public class DispatchServiceImpl implements DispatchService {
             driverStatusLog.setIsReportGenerated(0);
             driverStatusLog.setReceivedTimestamp(instant.toEpochMilli());
             driverStatusLog.setIsVisible(1);
-            List<DriverStatusLog> logDataExist = this.driverStatusLogRepo.CheckDriverStatusLogById(dsDataLog.get(0).get_id());
+            List<DriverStatusLog> logDataExist = this.driverStatusLogRepo
+                    .CheckDriverStatusLogById(dsDataLog.get(0).get_id());
             if (logDataExist.size() <= 0) {
                 this.driverStatusLogRepo.save(driverStatusLog);
                 this.UpdateDriverSequenceId(driveringStatus.getDriverId(), driveringStatus.getUtcDateTime());
@@ -5728,8 +7063,7 @@ public class DispatchServiceImpl implements DispatchService {
             long lastUtcDateTime,
             String currentStatus,
             int logShift,
-            int logDays
-    ) {
+            int logDays) {
         String sDebug = " ## ";
         long remainingDriveTime = 0L;
         long remainingDutyTime = 0L;
@@ -5769,10 +7103,12 @@ public class DispatchServiceImpl implements DispatchService {
 
         try {
             Pageable pageableRequest = PageRequest.of(0, 1, Sort.by(new String[]{"utcDateTime"}).ascending());
-            Query queryData = new Query(Criteria.where("driverId").is(driverId).and("utcDateTime").gt(lastUtcDateTime).lte(to).and("isVoilation").is(0));
+            Query queryData = new Query(Criteria.where("driverId").is(driverId).and("utcDateTime").gt(lastUtcDateTime)
+                    .lte(to).and("isVoilation").is(0));
             queryData.limit(1);
             queryData.with(pageableRequest);
-            List<DriveringStatusViewDto> driveringStatusViewDtoData = this.mongoTemplate.find(queryData, DriveringStatusViewDto.class, "drivering_status");
+            List<DriveringStatusViewDto> driveringStatusViewDtoData = this.mongoTemplate.find(queryData,
+                    DriveringStatusViewDto.class, "drivering_status");
             if (driveringStatusViewDtoData.size() > 0) {
                 nextStatus = driveringStatusViewDtoData.get(0).getStatus();
                 nextLogUtcDateTime = driveringStatusViewDtoData.get(0).getUtcDateTime();
@@ -5781,10 +7117,12 @@ public class DispatchServiceImpl implements DispatchService {
             }
 
             Pageable var163 = PageRequest.of(0, 1, Sort.by(new String[]{"utcDateTime"}).descending());
-            queryData = new Query(Criteria.where("driverId").is(driverId).and("utcDateTime").lt(lastUtcDateTime).and("isVoilation").is(0));
+            queryData = new Query(Criteria.where("driverId").is(driverId).and("utcDateTime").lt(lastUtcDateTime)
+                    .and("isVoilation").is(0));
             queryData.limit(1);
             queryData.with(var163);
-            driveringStatusViewDtoData = this.mongoTemplate.find(queryData, DriveringStatusViewDto.class, "drivering_status");
+            driveringStatusViewDtoData = this.mongoTemplate.find(queryData, DriveringStatusViewDto.class,
+                    "drivering_status");
             if (driveringStatusViewDtoData.size() > 0) {
                 previousStatus = driveringStatusViewDtoData.get(0).getStatus();
                 lastLogUtcDateTime = driveringStatusViewDtoData.get(0).getUtcDateTime();
@@ -5797,15 +7135,15 @@ public class DispatchServiceImpl implements DispatchService {
             new Update();
             long previousMidnightTimestamp = midnightTimestamp - 86400000L;
             List<DriveringStatusLogViewDto> driveringStatusList = this.loockupDriveringStatusDataForOneDay(
-                    driverId, previousMidnightTimestamp, to, logShift, logDays
-            );
+                    driverId, previousMidnightTimestamp, to, logShift, logDays);
             sDebug = sDebug + " >> " + previousStatus + " :: " + currentStatus + " : " + nextStatus + "\n";
             this.SaveLog(sDebug);
             String logType = "";
             int voilationHour = 0;
             long voilationUtcDateTime = 0L;
             currentUtcDateTime = 0L;
-            if (!currentStatus.equals("OnDrive") || !nextStatus.equals("OnDuty") || !previousStatus.equals("OffDuty") && !previousStatus.equals("OnSleep")) {
+            if (!currentStatus.equals("OnDrive") || !nextStatus.equals("OnDuty")
+                    || !previousStatus.equals("OffDuty") && !previousStatus.equals("OnSleep")) {
                 if (currentStatus.equals("OnDuty") && nextStatus.equals("OnDrive")) {
                     for (int i = 0; i < driveringStatusList.size(); ++i) {
                         ObjectId objId = new ObjectId(driveringStatusList.get(i).get_id());
@@ -5818,13 +7156,15 @@ public class DispatchServiceImpl implements DispatchService {
                         shift = driveringStatusList.get(i).getShift();
                         currentUtcDateTime = driveringStatusList.get(i).getUtcDateTime();
                         if (days == lastDays && lastDays > 0) {
-                            this.UpdateRemainingCalculationData(driverId, objId, remainingDriveTime, remainingDutyTime, remainingWeeklyTime);
+                            this.UpdateRemainingCalculationData(driverId, objId, remainingDriveTime, remainingDutyTime,
+                                    remainingWeeklyTime);
                         } else {
                             if (lastDays != 0 || i != 0) {
                                 break;
                             }
 
-                            this.UpdateRemainingCalculationData(driverId, objId, remainingDriveTime, remainingDutyTime, remainingWeeklyTime);
+                            this.UpdateRemainingCalculationData(driverId, objId, remainingDriveTime, remainingDutyTime,
+                                    remainingWeeklyTime);
                         }
 
                         lastDays = days;
@@ -5840,20 +7180,25 @@ public class DispatchServiceImpl implements DispatchService {
                         shift = driveringStatusList.get(i).getShift();
                         currentUtcDateTime = driveringStatusList.get(i).getUtcDateTime();
                         if (days == lastDays && lastDays > 0) {
-                            this.UpdateRemainingCalculationData(driverId, objId, remainingDriveTime, remainingDutyTime, remainingWeeklyTime);
+                            this.UpdateRemainingCalculationData(driverId, objId, remainingDriveTime, remainingDutyTime,
+                                    remainingWeeklyTime);
                         } else {
                             if (lastDays != 0 || i != 0) {
                                 break;
                             }
 
-                            this.UpdateRemainingCalculationData(driverId, objId, remainingDriveTime, remainingDutyTime, remainingWeeklyTime);
+                            this.UpdateRemainingCalculationData(driverId, objId, remainingDriveTime, remainingDutyTime,
+                                    remainingWeeklyTime);
                         }
 
                         lastDays = days;
                     }
-                } else if (!currentStatus.equals("OnDrive") || !nextStatus.equals("OffDuty") && !nextStatus.equals("OnSleep")) {
-                    if (!currentStatus.equals("OnDuty") || !nextStatus.equals("OffDuty") && !nextStatus.equals("OnSleep")) {
-                        if ((currentStatus.equals("OffDuty") || currentStatus.equals("OnSleep")) && previousStatus.equals("OnDrive")) {
+                } else if (!currentStatus.equals("OnDrive")
+                        || !nextStatus.equals("OffDuty") && !nextStatus.equals("OnSleep")) {
+                    if (!currentStatus.equals("OnDuty")
+                            || !nextStatus.equals("OffDuty") && !nextStatus.equals("OnSleep")) {
+                        if ((currentStatus.equals("OffDuty") || currentStatus.equals("OnSleep"))
+                                && previousStatus.equals("OnDrive")) {
                             sDebug = sDebug + "Previous log : " + previousStatus + ",\n";
 
                             for (int i = 0; i < driveringStatusList.size(); ++i) {
@@ -5861,7 +7206,8 @@ public class DispatchServiceImpl implements DispatchService {
                                 days = driveringStatusList.get(i).getDays();
                                 shift = driveringStatusList.get(i).getShift();
                                 currentUtcDateTime = driveringStatusList.get(i).getUtcDateTime();
-                                isBreak = this.CheckBreak(currentStatus, previousStatus, nextStatus, currentUtcDateTime, lastLogUtcDateTime, nextLogUtcDateTime);
+                                isBreak = this.CheckBreak(currentStatus, previousStatus, nextStatus, currentUtcDateTime,
+                                        lastLogUtcDateTime, nextLogUtcDateTime);
                                 if (isBreak) {
                                     if (totalSeconds < 0L) {
                                         totalSeconds = Math.abs(totalSeconds);
@@ -5869,19 +7215,27 @@ public class DispatchServiceImpl implements DispatchService {
                                         totalSeconds = -totalSeconds;
                                     }
 
-                                    remainingDutyTime = Long.parseLong(driveringStatusList.get(i).getRemainingDutyTime());
+                                    remainingDutyTime = Long
+                                            .parseLong(driveringStatusList.get(i).getRemainingDutyTime());
                                     remainingDutyTime = this.CalculateRemainingTime(totalSeconds, remainingDutyTime);
-                                    remainingDriveTime = Long.parseLong(driveringStatusList.get(i).getRemainingDriveTime());
+                                    remainingDriveTime = Long
+                                            .parseLong(driveringStatusList.get(i).getRemainingDriveTime());
                                     remainingDriveTime = this.CalculateRemainingTime(totalSeconds, remainingDriveTime);
-                                    remainingWeeklyTime = Long.parseLong(driveringStatusList.get(i).getRemainingWeeklyTime());
-                                    remainingWeeklyTime = this.CalculateRemainingTime(totalSeconds, remainingWeeklyTime);
+                                    remainingWeeklyTime = Long
+                                            .parseLong(driveringStatusList.get(i).getRemainingWeeklyTime());
+                                    remainingWeeklyTime = this.CalculateRemainingTime(totalSeconds,
+                                            remainingWeeklyTime);
                                 } else {
-                                    remainingDutyTime = Long.parseLong(driveringStatusList.get(i).getRemainingDutyTime());
+                                    remainingDutyTime = Long
+                                            .parseLong(driveringStatusList.get(i).getRemainingDutyTime());
                                     remainingDutyTime = this.CalculateRemainingTime(totalSeconds, remainingDutyTime);
-                                    remainingDriveTime = Long.parseLong(driveringStatusList.get(i).getRemainingDriveTime());
+                                    remainingDriveTime = Long
+                                            .parseLong(driveringStatusList.get(i).getRemainingDriveTime());
                                     remainingDriveTime = this.CalculateRemainingTime(totalSeconds, remainingDriveTime);
-                                    remainingWeeklyTime = Long.parseLong(driveringStatusList.get(i).getRemainingWeeklyTime());
-                                    remainingWeeklyTime = this.CalculateRemainingTime(totalSeconds, remainingWeeklyTime);
+                                    remainingWeeklyTime = Long
+                                            .parseLong(driveringStatusList.get(i).getRemainingWeeklyTime());
+                                    remainingWeeklyTime = this.CalculateRemainingTime(totalSeconds,
+                                            remainingWeeklyTime);
                                 }
 
                                 sDebug = sDebug
@@ -5895,17 +7249,21 @@ public class DispatchServiceImpl implements DispatchService {
                                         + remainingWeeklyTime
                                         + "\n";
                                 if (days == lastDays && lastDays > 0) {
-                                    this.UpdateRemainingCalculationData(driverId, objId, remainingDriveTime, remainingDutyTime, remainingWeeklyTime);
+                                    this.UpdateRemainingCalculationData(driverId, objId, remainingDriveTime,
+                                            remainingDutyTime, remainingWeeklyTime);
                                 } else if (lastDays == 0 && i == 0) {
-                                    this.UpdateRemainingCalculationData(driverId, objId, remainingDriveTime, remainingDutyTime, remainingWeeklyTime);
+                                    this.UpdateRemainingCalculationData(driverId, objId, remainingDriveTime,
+                                            remainingDutyTime, remainingWeeklyTime);
                                 } else {
                                     if (shift != lastShift) {
                                         break;
                                     }
 
                                     isDayChange = true;
-                                    remainingDutyTime = Long.parseLong(driveringStatusList.get(i).getRemainingDutyTime());
-                                    remainingDriveTime = Long.parseLong(driveringStatusList.get(i).getRemainingDriveTime());
+                                    remainingDutyTime = Long
+                                            .parseLong(driveringStatusList.get(i).getRemainingDutyTime());
+                                    remainingDriveTime = Long
+                                            .parseLong(driveringStatusList.get(i).getRemainingDriveTime());
                                     sDebug = sDebug
                                             + "Shift | "
                                             + shift
@@ -5918,7 +7276,8 @@ public class DispatchServiceImpl implements DispatchService {
                                             + " Cycle | "
                                             + remainingWeeklyTime
                                             + "\n";
-                                    this.UpdateRemainingCalculationData(driverId, objId, remainingDriveTime, remainingDutyTime, remainingWeeklyTime);
+                                    this.UpdateRemainingCalculationData(driverId, objId, remainingDriveTime,
+                                            remainingDutyTime, remainingWeeklyTime);
                                 }
 
                                 if (!isDayChange) {
@@ -5928,11 +7287,13 @@ public class DispatchServiceImpl implements DispatchService {
                                 lastShift = shift;
                                 lastLogUtcDateTime = currentUtcDateTime;
                             }
-                        } else if ((currentStatus.equals("OffDuty") || currentStatus.equals("OnSleep")) && previousStatus.equals("OnDuty")) {
+                        } else if ((currentStatus.equals("OffDuty") || currentStatus.equals("OnSleep"))
+                                && previousStatus.equals("OnDuty")) {
                             for (int i = 0; i < driveringStatusList.size(); ++i) {
                                 ObjectId objId = new ObjectId(driveringStatusList.get(i).get_id());
                                 currentUtcDateTime = driveringStatusList.get(i).getUtcDateTime();
-                                isBreak = this.CheckBreak(currentStatus, previousStatus, nextStatus, currentUtcDateTime, lastLogUtcDateTime, nextLogUtcDateTime);
+                                isBreak = this.CheckBreak(currentStatus, previousStatus, nextStatus, currentUtcDateTime,
+                                        lastLogUtcDateTime, nextLogUtcDateTime);
                                 if (isBreak) {
                                     if (totalSeconds < 0L) {
                                         totalSeconds = Math.abs(totalSeconds);
@@ -5940,34 +7301,47 @@ public class DispatchServiceImpl implements DispatchService {
                                         totalSeconds = -totalSeconds;
                                     }
 
-                                    remainingDutyTime = Long.parseLong(driveringStatusList.get(i).getRemainingDutyTime());
+                                    remainingDutyTime = Long
+                                            .parseLong(driveringStatusList.get(i).getRemainingDutyTime());
                                     remainingDutyTime = this.CalculateRemainingTime(totalSeconds, remainingDutyTime);
-                                    remainingDriveTime = Long.parseLong(driveringStatusList.get(i).getRemainingDriveTime());
-                                    remainingWeeklyTime = Long.parseLong(driveringStatusList.get(i).getRemainingWeeklyTime());
-                                    remainingWeeklyTime = this.CalculateRemainingTime(totalSeconds, remainingWeeklyTime);
+                                    remainingDriveTime = Long
+                                            .parseLong(driveringStatusList.get(i).getRemainingDriveTime());
+                                    remainingWeeklyTime = Long
+                                            .parseLong(driveringStatusList.get(i).getRemainingWeeklyTime());
+                                    remainingWeeklyTime = this.CalculateRemainingTime(totalSeconds,
+                                            remainingWeeklyTime);
                                 } else {
-                                    remainingDutyTime = Long.parseLong(driveringStatusList.get(i).getRemainingDutyTime());
+                                    remainingDutyTime = Long
+                                            .parseLong(driveringStatusList.get(i).getRemainingDutyTime());
                                     remainingDutyTime = this.CalculateRemainingTime(totalSeconds, remainingDutyTime);
-                                    remainingDriveTime = Long.parseLong(driveringStatusList.get(i).getRemainingDriveTime());
-                                    remainingWeeklyTime = Long.parseLong(driveringStatusList.get(i).getRemainingWeeklyTime());
-                                    remainingWeeklyTime = this.CalculateRemainingTime(totalSeconds, remainingWeeklyTime);
+                                    remainingDriveTime = Long
+                                            .parseLong(driveringStatusList.get(i).getRemainingDriveTime());
+                                    remainingWeeklyTime = Long
+                                            .parseLong(driveringStatusList.get(i).getRemainingWeeklyTime());
+                                    remainingWeeklyTime = this.CalculateRemainingTime(totalSeconds,
+                                            remainingWeeklyTime);
                                 }
 
                                 days = driveringStatusList.get(i).getDays();
                                 shift = driveringStatusList.get(i).getShift();
                                 if (days == lastDays && lastDays > 0) {
-                                    this.UpdateRemainingCalculationData(driverId, objId, remainingDriveTime, remainingDutyTime, remainingWeeklyTime);
+                                    this.UpdateRemainingCalculationData(driverId, objId, remainingDriveTime,
+                                            remainingDutyTime, remainingWeeklyTime);
                                 } else if (lastDays == 0 && i == 0) {
-                                    this.UpdateRemainingCalculationData(driverId, objId, remainingDriveTime, remainingDutyTime, remainingWeeklyTime);
+                                    this.UpdateRemainingCalculationData(driverId, objId, remainingDriveTime,
+                                            remainingDutyTime, remainingWeeklyTime);
                                 } else {
                                     if (shift != lastShift) {
                                         break;
                                     }
 
                                     isDayChange = true;
-                                    remainingDutyTime = Long.parseLong(driveringStatusList.get(i).getRemainingDutyTime());
-                                    remainingDriveTime = Long.parseLong(driveringStatusList.get(i).getRemainingDriveTime());
-                                    this.UpdateRemainingCalculationData(driverId, objId, remainingDriveTime, remainingDutyTime, remainingWeeklyTime);
+                                    remainingDutyTime = Long
+                                            .parseLong(driveringStatusList.get(i).getRemainingDutyTime());
+                                    remainingDriveTime = Long
+                                            .parseLong(driveringStatusList.get(i).getRemainingDriveTime());
+                                    this.UpdateRemainingCalculationData(driverId, objId, remainingDriveTime,
+                                            remainingDutyTime, remainingWeeklyTime);
                                 }
 
                                 if (!isDayChange) {
@@ -6000,9 +7374,11 @@ public class DispatchServiceImpl implements DispatchService {
                                     + remainingWeeklyTime
                                     + "\n";
                             if (days == lastDays && lastDays > 0) {
-                                this.UpdateRemainingCalculationData(driverId, objId, remainingDriveTime, remainingDutyTime, remainingWeeklyTime);
+                                this.UpdateRemainingCalculationData(driverId, objId, remainingDriveTime,
+                                        remainingDutyTime, remainingWeeklyTime);
                             } else if (lastDays == 0 && i == 0) {
-                                this.UpdateRemainingCalculationData(driverId, objId, remainingDriveTime, remainingDutyTime, remainingWeeklyTime);
+                                this.UpdateRemainingCalculationData(driverId, objId, remainingDriveTime,
+                                        remainingDutyTime, remainingWeeklyTime);
                             } else {
                                 if (shift != lastShift) {
                                     break;
@@ -6011,7 +7387,8 @@ public class DispatchServiceImpl implements DispatchService {
                                 isDayChange = true;
                                 remainingDutyTime = Long.parseLong(driveringStatusList.get(i).getRemainingDutyTime());
                                 remainingDriveTime = Long.parseLong(driveringStatusList.get(i).getRemainingDriveTime());
-                                this.UpdateRemainingCalculationData(driverId, objId, remainingDriveTime, remainingDutyTime, remainingWeeklyTime);
+                                this.UpdateRemainingCalculationData(driverId, objId, remainingDriveTime,
+                                        remainingDutyTime, remainingWeeklyTime);
                             }
 
                             if (!isDayChange) {
@@ -6032,11 +7409,14 @@ public class DispatchServiceImpl implements DispatchService {
                         days = driveringStatusList.get(i).getDays();
                         shift = driveringStatusList.get(i).getShift();
                         currentUtcDateTime = driveringStatusList.get(i).getUtcDateTime();
-                        sDebug = sDebug + "Day | " + days + " OD | " + remainingDutyTime + " ODR | " + remainingDriveTime + " Cycle | " + remainingWeeklyTime + "\n";
+                        sDebug = sDebug + "Day | " + days + " OD | " + remainingDutyTime + " ODR | "
+                                + remainingDriveTime + " Cycle | " + remainingWeeklyTime + "\n";
                         if (days == lastDays && lastDays > 0) {
-                            this.UpdateRemainingCalculationData(driverId, objId, remainingDriveTime, remainingDutyTime, remainingWeeklyTime);
+                            this.UpdateRemainingCalculationData(driverId, objId, remainingDriveTime, remainingDutyTime,
+                                    remainingWeeklyTime);
                         } else if (lastDays == 0 && i == 0) {
-                            this.UpdateRemainingCalculationData(driverId, objId, remainingDriveTime, remainingDutyTime, remainingWeeklyTime);
+                            this.UpdateRemainingCalculationData(driverId, objId, remainingDriveTime, remainingDutyTime,
+                                    remainingWeeklyTime);
                         } else {
                             if (shift != lastShift) {
                                 break;
@@ -6045,7 +7425,8 @@ public class DispatchServiceImpl implements DispatchService {
                             isDayChange = true;
                             remainingDutyTime = Long.parseLong(driveringStatusList.get(i).getRemainingDutyTime());
                             remainingDriveTime = Long.parseLong(driveringStatusList.get(i).getRemainingDriveTime());
-                            this.UpdateRemainingCalculationData(driverId, objId, remainingDriveTime, remainingDutyTime, remainingWeeklyTime);
+                            this.UpdateRemainingCalculationData(driverId, objId, remainingDriveTime, remainingDutyTime,
+                                    remainingWeeklyTime);
                         }
 
                         if (!isDayChange) {
@@ -6062,13 +7443,16 @@ public class DispatchServiceImpl implements DispatchService {
                     remainingWeeklyTime = Long.parseLong(driveringStatusList.get(i).getRemainingWeeklyTime());
                     remainingDriveTime = Long.parseLong(driveringStatusList.get(i).getRemainingDriveTime());
                     if (i == 0) {
-                        isBreak = this.CheckBreak(currentStatus, previousStatus, nextStatus, currentLogTime, lastLogUtcDateTime, nextLogUtcDateTime);
+                        isBreak = this.CheckBreak(currentStatus, previousStatus, nextStatus, currentLogTime,
+                                lastLogUtcDateTime, nextLogUtcDateTime);
                         breakDuration = (lastUtcDateTime - lastLogUtcDateTime) / 1000L;
                     }
 
                     if (isBreak) {
-                        remainingDutyTime = this.CalculateRemainingTime(totalSeconds + breakDuration, remainingDutyTime);
-                        remainingWeeklyTime = this.CalculateRemainingTime(totalSeconds + breakDuration, remainingWeeklyTime);
+                        remainingDutyTime = this.CalculateRemainingTime(totalSeconds + breakDuration,
+                                remainingDutyTime);
+                        remainingWeeklyTime = this.CalculateRemainingTime(totalSeconds + breakDuration,
+                                remainingWeeklyTime);
                         remainingDriveTime = this.CalculateRemainingTime(totalSeconds, remainingDriveTime);
                     } else {
                         remainingDutyTime = this.CalculateRemainingTime(-breakDuration, remainingDutyTime);
@@ -6076,18 +7460,21 @@ public class DispatchServiceImpl implements DispatchService {
                         remainingDriveTime = this.CalculateRemainingTime(totalSeconds, remainingDriveTime);
                     }
 
-                    sDebug = sDebug + " >> BD : " + breakDuration + " :: " + remainingDutyTime + " : " + remainingWeeklyTime + "\n";
+                    sDebug = sDebug + " >> BD : " + breakDuration + " :: " + remainingDutyTime + " : "
+                            + remainingWeeklyTime + "\n";
                     days = driveringStatusList.get(i).getDays();
                     shift = driveringStatusList.get(i).getShift();
                     currentUtcDateTime = driveringStatusList.get(i).getUtcDateTime();
                     if (days == lastDays && lastDays > 0) {
-                        this.UpdateRemainingCalculationData(driverId, objId, remainingDriveTime, remainingDutyTime, remainingWeeklyTime);
+                        this.UpdateRemainingCalculationData(driverId, objId, remainingDriveTime, remainingDutyTime,
+                                remainingWeeklyTime);
                     } else {
                         if (lastDays != 0 || i != 0) {
                             break;
                         }
 
-                        this.UpdateRemainingCalculationData(driverId, objId, remainingDriveTime, remainingDutyTime, remainingWeeklyTime);
+                        this.UpdateRemainingCalculationData(driverId, objId, remainingDriveTime, remainingDutyTime,
+                                remainingWeeklyTime);
                     }
 
                     lastDays = days;
@@ -6120,12 +7507,12 @@ public class DispatchServiceImpl implements DispatchService {
             long lastUtcDateTime,
             String currentStatus,
             int logShift,
-            int logDays
-    ) {
+            int logDays) {
         String sDebug = "## TIMELINE ENGINE (COMPATIBLE) ##\n";
 
         try {
-            List<DriveringStatusLogViewDto> logs = this.loockupDriveringStatusData(driverId, midnightTimestamp, currentDayEndTime);
+            List<DriveringStatusLogViewDto> logs = this.loockupDriveringStatusData(driverId, midnightTimestamp,
+                    currentDayEndTime);
             if (logs == null || logs.size() < 2) {
                 return;
             }
@@ -6176,7 +7563,8 @@ public class DispatchServiceImpl implements DispatchService {
                     break;
                 }
 
-                this.UpdateRemainingCalculationData(driverId, objId, remainingDriveTime, remainingDutyTime, remainingWeeklyTime);
+                this.UpdateRemainingCalculationData(driverId, objId, remainingDriveTime, remainingDutyTime,
+                        remainingWeeklyTime);
                 prevTime = currTime;
                 prevStatus = currStatus;
                 lastDay = currDay;
@@ -6198,8 +7586,7 @@ public class DispatchServiceImpl implements DispatchService {
             long lastUtcDateTime,
             String currentStatus,
             int logShift,
-            int logDays
-    ) {
+            int logDays) {
         String sDebug = " ## ";
         long remainingDriveTime = 0L;
         long remainingDutyTime = 0L;
@@ -6244,10 +7631,12 @@ public class DispatchServiceImpl implements DispatchService {
 
         try {
             Pageable pageableRequest = PageRequest.of(0, 1, Sort.by(new String[]{"utcDateTime"}).ascending());
-            Query queryData = new Query(Criteria.where("driverId").is(driverId).and("utcDateTime").gt(lastUtcDateTime).lte(to).and("isVoilation").is(0));
+            Query queryData = new Query(Criteria.where("driverId").is(driverId).and("utcDateTime").gt(lastUtcDateTime)
+                    .lte(to).and("isVoilation").is(0));
             queryData.limit(1);
             queryData.with(pageableRequest);
-            List<DriveringStatusViewDto> driveringStatusViewDtoData = this.mongoTemplate.find(queryData, DriveringStatusViewDto.class, "drivering_status");
+            List<DriveringStatusViewDto> driveringStatusViewDtoData = this.mongoTemplate.find(queryData,
+                    DriveringStatusViewDto.class, "drivering_status");
             if (driveringStatusViewDtoData.size() > 0) {
                 nextStatus = driveringStatusViewDtoData.get(0).getStatus();
                 nextLogUtcDateTime = driveringStatusViewDtoData.get(0).getUtcDateTime();
@@ -6262,10 +7651,12 @@ public class DispatchServiceImpl implements DispatchService {
             }
 
             Pageable var169 = PageRequest.of(0, 1, Sort.by(new String[]{"utcDateTime"}).descending());
-            queryData = new Query(Criteria.where("driverId").is(driverId).and("utcDateTime").lt(lastUtcDateTime).and("isVoilation").is(0));
+            queryData = new Query(Criteria.where("driverId").is(driverId).and("utcDateTime").lt(lastUtcDateTime)
+                    .and("isVoilation").is(0));
             queryData.limit(1);
             queryData.with(var169);
-            driveringStatusViewDtoData = this.mongoTemplate.find(queryData, DriveringStatusViewDto.class, "drivering_status");
+            driveringStatusViewDtoData = this.mongoTemplate.find(queryData, DriveringStatusViewDto.class,
+                    "drivering_status");
             if (driveringStatusViewDtoData.size() > 0) {
                 previousStatus = driveringStatusViewDtoData.get(0).getStatus();
                 lastLogUtcDateTime = driveringStatusViewDtoData.get(0).getUtcDateTime();
@@ -6282,44 +7673,52 @@ public class DispatchServiceImpl implements DispatchService {
 
             new Query();
             new Update();
-            List<DriveringStatusLogViewDto> driveringStatusList = this.loockupDriveringStatusData(driverId, lastUtcDateTime, currentDayEndTime);
+            List<DriveringStatusLogViewDto> driveringStatusList = this.loockupDriveringStatusData(driverId,
+                    lastUtcDateTime, currentDayEndTime);
             sDebug = sDebug + " >> " + previousStatus + " :: " + currentStatus + " : " + nextStatus + "\n";
             this.SaveLog(sDebug);
             String logType = "";
             int voilationHour = 0;
             long voilationUtcDateTime = 0L;
             currentUtcDateTime = 0L;
-            if (currentStatus.equals("OnDrive") && nextStatus.equals("OnDuty") && (previousStatus.equals("OffDuty") || previousStatus.equals("OnSleep"))) {
+            if (currentStatus.equals("OnDrive") && nextStatus.equals("OnDuty")
+                    && (previousStatus.equals("OffDuty") || previousStatus.equals("OnSleep"))) {
                 for (int i = 0; i < driveringStatusList.size(); ++i) {
                     ObjectId objId = new ObjectId(driveringStatusList.get(i).get_id());
                     remainingDutyTime = Long.parseLong(driveringStatusList.get(i).getRemainingDutyTime());
                     remainingWeeklyTime = Long.parseLong(driveringStatusList.get(i).getRemainingWeeklyTime());
                     remainingDriveTime = Long.parseLong(driveringStatusList.get(i).getRemainingDriveTime());
                     if (i == 0) {
-                        isBreak = this.CheckBreak(currentStatus, previousStatus, nextStatus, currentLogTime, lastLogUtcDateTime, nextLogUtcDateTime);
+                        isBreak = this.CheckBreak(currentStatus, previousStatus, nextStatus, currentLogTime,
+                                lastLogUtcDateTime, nextLogUtcDateTime);
                         breakDuration = (lastUtcDateTime - lastLogUtcDateTime) / 1000L;
                     }
 
                     if (isBreak) {
-                        remainingDutyTime = this.CalculateRemainingTime(totalSeconds + breakDuration, remainingDutyTime);
-                        remainingWeeklyTime = this.CalculateRemainingTime(totalSeconds + breakDuration, remainingWeeklyTime);
+                        remainingDutyTime = this.CalculateRemainingTime(totalSeconds + breakDuration,
+                                remainingDutyTime);
+                        remainingWeeklyTime = this.CalculateRemainingTime(totalSeconds + breakDuration,
+                                remainingWeeklyTime);
                         remainingDriveTime = this.CalculateRemainingTime(totalSeconds, remainingDriveTime);
                     } else {
                         remainingDriveTime = this.CalculateRemainingTime(totalSeconds, remainingDriveTime);
                     }
 
-                    sDebug = sDebug + " >> BD : " + isBreak + " >> " + breakDuration + " :: " + remainingDutyTime + " : " + remainingWeeklyTime + "\n";
+                    sDebug = sDebug + " >> BD : " + isBreak + " >> " + breakDuration + " :: " + remainingDutyTime
+                            + " : " + remainingWeeklyTime + "\n";
                     days = driveringStatusList.get(i).getDays();
                     shift = driveringStatusList.get(i).getShift();
                     currentUtcDateTime = driveringStatusList.get(i).getUtcDateTime();
                     if (days == lastDays && lastDays > 0) {
-                        this.UpdateRemainingCalculationData(driverId, objId, remainingDriveTime, remainingDutyTime, remainingWeeklyTime);
+                        this.UpdateRemainingCalculationData(driverId, objId, remainingDriveTime, remainingDutyTime,
+                                remainingWeeklyTime);
                     } else {
                         if (lastDays != 0 || i != 0) {
                             break;
                         }
 
-                        this.UpdateRemainingCalculationData(driverId, objId, remainingDriveTime, remainingDutyTime, remainingWeeklyTime);
+                        this.UpdateRemainingCalculationData(driverId, objId, remainingDriveTime, remainingDutyTime,
+                                remainingWeeklyTime);
                     }
 
                     lastDays = days;
@@ -6327,7 +7726,8 @@ public class DispatchServiceImpl implements DispatchService {
                 }
             }
 
-            if (!currentStatus.equals("OnDuty") || !nextStatus.equals("OnDrive") || !previousStatus.equals("OffDuty") && !previousStatus.equals("OnSleep")) {
+            if (!currentStatus.equals("OnDuty") || !nextStatus.equals("OnDrive")
+                    || !previousStatus.equals("OffDuty") && !previousStatus.equals("OnSleep")) {
                 if (currentStatus.equals("OnDuty") && nextStatus.equals("OnDrive")) {
                     for (int i = 0; i < driveringStatusList.size(); ++i) {
                         ObjectId objId = new ObjectId(driveringStatusList.get(i).get_id());
@@ -6340,13 +7740,15 @@ public class DispatchServiceImpl implements DispatchService {
                         shift = driveringStatusList.get(i).getShift();
                         currentUtcDateTime = driveringStatusList.get(i).getUtcDateTime();
                         if (days == lastDays && lastDays > 0) {
-                            this.UpdateRemainingCalculationData(driverId, objId, remainingDriveTime, remainingDutyTime, remainingWeeklyTime);
+                            this.UpdateRemainingCalculationData(driverId, objId, remainingDriveTime, remainingDutyTime,
+                                    remainingWeeklyTime);
                         } else {
                             if (lastDays != 0 || i != 0) {
                                 break;
                             }
 
-                            this.UpdateRemainingCalculationData(driverId, objId, remainingDriveTime, remainingDutyTime, remainingWeeklyTime);
+                            this.UpdateRemainingCalculationData(driverId, objId, remainingDriveTime, remainingDutyTime,
+                                    remainingWeeklyTime);
                         }
 
                         lastDays = days;
@@ -6362,20 +7764,25 @@ public class DispatchServiceImpl implements DispatchService {
                         shift = driveringStatusList.get(i).getShift();
                         currentUtcDateTime = driveringStatusList.get(i).getUtcDateTime();
                         if (days == lastDays && lastDays > 0) {
-                            this.UpdateRemainingCalculationData(driverId, objId, remainingDriveTime, remainingDutyTime, remainingWeeklyTime);
+                            this.UpdateRemainingCalculationData(driverId, objId, remainingDriveTime, remainingDutyTime,
+                                    remainingWeeklyTime);
                         } else {
                             if (lastDays != 0 || i != 0) {
                                 break;
                             }
 
-                            this.UpdateRemainingCalculationData(driverId, objId, remainingDriveTime, remainingDutyTime, remainingWeeklyTime);
+                            this.UpdateRemainingCalculationData(driverId, objId, remainingDriveTime, remainingDutyTime,
+                                    remainingWeeklyTime);
                         }
 
                         lastDays = days;
                     }
-                } else if (!currentStatus.equals("OnDrive") || !nextStatus.equals("OffDuty") && !nextStatus.equals("OnSleep")) {
-                    if (!currentStatus.equals("OnDuty") || !nextStatus.equals("OffDuty") && !nextStatus.equals("OnSleep")) {
-                        if ((currentStatus.equals("OffDuty") || currentStatus.equals("OnSleep")) && previousStatus.equals("OnDrive")) {
+                } else if (!currentStatus.equals("OnDrive")
+                        || !nextStatus.equals("OffDuty") && !nextStatus.equals("OnSleep")) {
+                    if (!currentStatus.equals("OnDuty")
+                            || !nextStatus.equals("OffDuty") && !nextStatus.equals("OnSleep")) {
+                        if ((currentStatus.equals("OffDuty") || currentStatus.equals("OnSleep"))
+                                && previousStatus.equals("OnDrive")) {
                             sDebug = sDebug + "Previous log : " + previousStatus + ",\n";
 
                             for (int i = 0; i < driveringStatusList.size(); ++i) {
@@ -6383,7 +7790,8 @@ public class DispatchServiceImpl implements DispatchService {
                                 days = driveringStatusList.get(i).getDays();
                                 shift = driveringStatusList.get(i).getShift();
                                 currentUtcDateTime = driveringStatusList.get(i).getUtcDateTime();
-                                isBreak = this.CheckBreak(currentStatus, previousStatus, nextStatus, currentUtcDateTime, lastLogUtcDateTime, nextLogUtcDateTime);
+                                isBreak = this.CheckBreak(currentStatus, previousStatus, nextStatus, currentUtcDateTime,
+                                        lastLogUtcDateTime, nextLogUtcDateTime);
                                 if (isBreak) {
                                     if (totalSeconds < 0L) {
                                         totalSeconds = Math.abs(totalSeconds);
@@ -6391,19 +7799,27 @@ public class DispatchServiceImpl implements DispatchService {
                                         totalSeconds = -totalSeconds;
                                     }
 
-                                    remainingDutyTime = Long.parseLong(driveringStatusList.get(i).getRemainingDutyTime());
+                                    remainingDutyTime = Long
+                                            .parseLong(driveringStatusList.get(i).getRemainingDutyTime());
                                     remainingDutyTime = this.CalculateRemainingTime(totalSeconds, remainingDutyTime);
-                                    remainingDriveTime = Long.parseLong(driveringStatusList.get(i).getRemainingDriveTime());
+                                    remainingDriveTime = Long
+                                            .parseLong(driveringStatusList.get(i).getRemainingDriveTime());
                                     remainingDriveTime = this.CalculateRemainingTime(totalSeconds, remainingDriveTime);
-                                    remainingWeeklyTime = Long.parseLong(driveringStatusList.get(i).getRemainingWeeklyTime());
-                                    remainingWeeklyTime = this.CalculateRemainingTime(totalSeconds, remainingWeeklyTime);
+                                    remainingWeeklyTime = Long
+                                            .parseLong(driveringStatusList.get(i).getRemainingWeeklyTime());
+                                    remainingWeeklyTime = this.CalculateRemainingTime(totalSeconds,
+                                            remainingWeeklyTime);
                                 } else {
-                                    remainingDutyTime = Long.parseLong(driveringStatusList.get(i).getRemainingDutyTime());
+                                    remainingDutyTime = Long
+                                            .parseLong(driveringStatusList.get(i).getRemainingDutyTime());
                                     remainingDutyTime = this.CalculateRemainingTime(totalSeconds, remainingDutyTime);
-                                    remainingDriveTime = Long.parseLong(driveringStatusList.get(i).getRemainingDriveTime());
+                                    remainingDriveTime = Long
+                                            .parseLong(driveringStatusList.get(i).getRemainingDriveTime());
                                     remainingDriveTime = this.CalculateRemainingTime(totalSeconds, remainingDriveTime);
-                                    remainingWeeklyTime = Long.parseLong(driveringStatusList.get(i).getRemainingWeeklyTime());
-                                    remainingWeeklyTime = this.CalculateRemainingTime(totalSeconds, remainingWeeklyTime);
+                                    remainingWeeklyTime = Long
+                                            .parseLong(driveringStatusList.get(i).getRemainingWeeklyTime());
+                                    remainingWeeklyTime = this.CalculateRemainingTime(totalSeconds,
+                                            remainingWeeklyTime);
                                 }
 
                                 sDebug = sDebug
@@ -6417,17 +7833,21 @@ public class DispatchServiceImpl implements DispatchService {
                                         + remainingWeeklyTime
                                         + "\n";
                                 if (days == lastDays && lastDays > 0) {
-                                    this.UpdateRemainingCalculationData(driverId, objId, remainingDriveTime, remainingDutyTime, remainingWeeklyTime);
+                                    this.UpdateRemainingCalculationData(driverId, objId, remainingDriveTime,
+                                            remainingDutyTime, remainingWeeklyTime);
                                 } else if (lastDays == 0 && i == 0) {
-                                    this.UpdateRemainingCalculationData(driverId, objId, remainingDriveTime, remainingDutyTime, remainingWeeklyTime);
+                                    this.UpdateRemainingCalculationData(driverId, objId, remainingDriveTime,
+                                            remainingDutyTime, remainingWeeklyTime);
                                 } else {
                                     if (shift != lastShift) {
                                         break;
                                     }
 
                                     isDayChange = true;
-                                    remainingDutyTime = Long.parseLong(driveringStatusList.get(i).getRemainingDutyTime());
-                                    remainingDriveTime = Long.parseLong(driveringStatusList.get(i).getRemainingDriveTime());
+                                    remainingDutyTime = Long
+                                            .parseLong(driveringStatusList.get(i).getRemainingDutyTime());
+                                    remainingDriveTime = Long
+                                            .parseLong(driveringStatusList.get(i).getRemainingDriveTime());
                                     sDebug = sDebug
                                             + "Shift | "
                                             + shift
@@ -6440,7 +7860,8 @@ public class DispatchServiceImpl implements DispatchService {
                                             + " Cycle | "
                                             + remainingWeeklyTime
                                             + "\n";
-                                    this.UpdateRemainingCalculationData(driverId, objId, remainingDriveTime, remainingDutyTime, remainingWeeklyTime);
+                                    this.UpdateRemainingCalculationData(driverId, objId, remainingDriveTime,
+                                            remainingDutyTime, remainingWeeklyTime);
                                 }
 
                                 if (!isDayChange) {
@@ -6450,11 +7871,13 @@ public class DispatchServiceImpl implements DispatchService {
                                 lastShift = shift;
                                 lastLogUtcDateTime = currentUtcDateTime;
                             }
-                        } else if ((currentStatus.equals("OffDuty") || currentStatus.equals("OnSleep")) && previousStatus.equals("OnDuty")) {
+                        } else if ((currentStatus.equals("OffDuty") || currentStatus.equals("OnSleep"))
+                                && previousStatus.equals("OnDuty")) {
                             for (int i = 0; i < driveringStatusList.size(); ++i) {
                                 ObjectId objId = new ObjectId(driveringStatusList.get(i).get_id());
                                 currentUtcDateTime = driveringStatusList.get(i).getUtcDateTime();
-                                isBreak = this.CheckBreak(currentStatus, previousStatus, nextStatus, currentUtcDateTime, lastLogUtcDateTime, nextLogUtcDateTime);
+                                isBreak = this.CheckBreak(currentStatus, previousStatus, nextStatus, currentUtcDateTime,
+                                        lastLogUtcDateTime, nextLogUtcDateTime);
                                 if (isBreak) {
                                     if (totalSeconds < 0L) {
                                         totalSeconds = Math.abs(totalSeconds);
@@ -6462,34 +7885,47 @@ public class DispatchServiceImpl implements DispatchService {
                                         totalSeconds = -totalSeconds;
                                     }
 
-                                    remainingDutyTime = Long.parseLong(driveringStatusList.get(i).getRemainingDutyTime());
+                                    remainingDutyTime = Long
+                                            .parseLong(driveringStatusList.get(i).getRemainingDutyTime());
                                     remainingDutyTime = this.CalculateRemainingTime(totalSeconds, remainingDutyTime);
-                                    remainingDriveTime = Long.parseLong(driveringStatusList.get(i).getRemainingDriveTime());
-                                    remainingWeeklyTime = Long.parseLong(driveringStatusList.get(i).getRemainingWeeklyTime());
-                                    remainingWeeklyTime = this.CalculateRemainingTime(totalSeconds, remainingWeeklyTime);
+                                    remainingDriveTime = Long
+                                            .parseLong(driveringStatusList.get(i).getRemainingDriveTime());
+                                    remainingWeeklyTime = Long
+                                            .parseLong(driveringStatusList.get(i).getRemainingWeeklyTime());
+                                    remainingWeeklyTime = this.CalculateRemainingTime(totalSeconds,
+                                            remainingWeeklyTime);
                                 } else {
-                                    remainingDutyTime = Long.parseLong(driveringStatusList.get(i).getRemainingDutyTime());
+                                    remainingDutyTime = Long
+                                            .parseLong(driveringStatusList.get(i).getRemainingDutyTime());
                                     remainingDutyTime = this.CalculateRemainingTime(totalSeconds, remainingDutyTime);
-                                    remainingDriveTime = Long.parseLong(driveringStatusList.get(i).getRemainingDriveTime());
-                                    remainingWeeklyTime = Long.parseLong(driveringStatusList.get(i).getRemainingWeeklyTime());
-                                    remainingWeeklyTime = this.CalculateRemainingTime(totalSeconds, remainingWeeklyTime);
+                                    remainingDriveTime = Long
+                                            .parseLong(driveringStatusList.get(i).getRemainingDriveTime());
+                                    remainingWeeklyTime = Long
+                                            .parseLong(driveringStatusList.get(i).getRemainingWeeklyTime());
+                                    remainingWeeklyTime = this.CalculateRemainingTime(totalSeconds,
+                                            remainingWeeklyTime);
                                 }
 
                                 days = driveringStatusList.get(i).getDays();
                                 shift = driveringStatusList.get(i).getShift();
                                 if (days == lastDays && lastDays > 0) {
-                                    this.UpdateRemainingCalculationData(driverId, objId, remainingDriveTime, remainingDutyTime, remainingWeeklyTime);
+                                    this.UpdateRemainingCalculationData(driverId, objId, remainingDriveTime,
+                                            remainingDutyTime, remainingWeeklyTime);
                                 } else if (lastDays == 0 && i == 0) {
-                                    this.UpdateRemainingCalculationData(driverId, objId, remainingDriveTime, remainingDutyTime, remainingWeeklyTime);
+                                    this.UpdateRemainingCalculationData(driverId, objId, remainingDriveTime,
+                                            remainingDutyTime, remainingWeeklyTime);
                                 } else {
                                     if (shift != lastShift) {
                                         break;
                                     }
 
                                     isDayChange = true;
-                                    remainingDutyTime = Long.parseLong(driveringStatusList.get(i).getRemainingDutyTime());
-                                    remainingDriveTime = Long.parseLong(driveringStatusList.get(i).getRemainingDriveTime());
-                                    this.UpdateRemainingCalculationData(driverId, objId, remainingDriveTime, remainingDutyTime, remainingWeeklyTime);
+                                    remainingDutyTime = Long
+                                            .parseLong(driveringStatusList.get(i).getRemainingDutyTime());
+                                    remainingDriveTime = Long
+                                            .parseLong(driveringStatusList.get(i).getRemainingDriveTime());
+                                    this.UpdateRemainingCalculationData(driverId, objId, remainingDriveTime,
+                                            remainingDutyTime, remainingWeeklyTime);
                                 }
 
                                 if (!isDayChange) {
@@ -6522,9 +7958,11 @@ public class DispatchServiceImpl implements DispatchService {
                                     + remainingWeeklyTime
                                     + "\n";
                             if (days == lastDays && lastDays > 0) {
-                                this.UpdateRemainingCalculationData(driverId, objId, remainingDriveTime, remainingDutyTime, remainingWeeklyTime);
+                                this.UpdateRemainingCalculationData(driverId, objId, remainingDriveTime,
+                                        remainingDutyTime, remainingWeeklyTime);
                             } else if (lastDays == 0 && i == 0) {
-                                this.UpdateRemainingCalculationData(driverId, objId, remainingDriveTime, remainingDutyTime, remainingWeeklyTime);
+                                this.UpdateRemainingCalculationData(driverId, objId, remainingDriveTime,
+                                        remainingDutyTime, remainingWeeklyTime);
                             } else {
                                 if (shift != lastShift) {
                                     break;
@@ -6533,7 +7971,8 @@ public class DispatchServiceImpl implements DispatchService {
                                 isDayChange = true;
                                 remainingDutyTime = Long.parseLong(driveringStatusList.get(i).getRemainingDutyTime());
                                 remainingDriveTime = Long.parseLong(driveringStatusList.get(i).getRemainingDriveTime());
-                                this.UpdateRemainingCalculationData(driverId, objId, remainingDriveTime, remainingDutyTime, remainingWeeklyTime);
+                                this.UpdateRemainingCalculationData(driverId, objId, remainingDriveTime,
+                                        remainingDutyTime, remainingWeeklyTime);
                             }
 
                             if (!isDayChange) {
@@ -6554,11 +7993,14 @@ public class DispatchServiceImpl implements DispatchService {
                         days = driveringStatusList.get(i).getDays();
                         shift = driveringStatusList.get(i).getShift();
                         currentUtcDateTime = driveringStatusList.get(i).getUtcDateTime();
-                        sDebug = sDebug + "Day | " + days + " OD | " + remainingDutyTime + " ODR | " + remainingDriveTime + " Cycle | " + remainingWeeklyTime + "\n";
+                        sDebug = sDebug + "Day | " + days + " OD | " + remainingDutyTime + " ODR | "
+                                + remainingDriveTime + " Cycle | " + remainingWeeklyTime + "\n";
                         if (days == lastDays && lastDays > 0) {
-                            this.UpdateRemainingCalculationData(driverId, objId, remainingDriveTime, remainingDutyTime, remainingWeeklyTime);
+                            this.UpdateRemainingCalculationData(driverId, objId, remainingDriveTime, remainingDutyTime,
+                                    remainingWeeklyTime);
                         } else if (lastDays == 0 && i == 0) {
-                            this.UpdateRemainingCalculationData(driverId, objId, remainingDriveTime, remainingDutyTime, remainingWeeklyTime);
+                            this.UpdateRemainingCalculationData(driverId, objId, remainingDriveTime, remainingDutyTime,
+                                    remainingWeeklyTime);
                         } else {
                             if (shift != lastShift) {
                                 break;
@@ -6567,7 +8009,8 @@ public class DispatchServiceImpl implements DispatchService {
                             isDayChange = true;
                             remainingDutyTime = Long.parseLong(driveringStatusList.get(i).getRemainingDutyTime());
                             remainingDriveTime = Long.parseLong(driveringStatusList.get(i).getRemainingDriveTime());
-                            this.UpdateRemainingCalculationData(driverId, objId, remainingDriveTime, remainingDutyTime, remainingWeeklyTime);
+                            this.UpdateRemainingCalculationData(driverId, objId, remainingDriveTime, remainingDutyTime,
+                                    remainingWeeklyTime);
                         }
 
                         if (!isDayChange) {
@@ -6584,7 +8027,8 @@ public class DispatchServiceImpl implements DispatchService {
                     remainingWeeklyTime = Long.parseLong(driveringStatusList.get(i).getRemainingWeeklyTime());
                     remainingDriveTime = Long.parseLong(driveringStatusList.get(i).getRemainingDriveTime());
                     if (i == 0) {
-                        isBreak = this.CheckBreak(currentStatus, previousStatus, nextStatus, currentLogTime, lastLogUtcDateTime, nextLogUtcDateTime);
+                        isBreak = this.CheckBreak(currentStatus, previousStatus, nextStatus, currentLogTime,
+                                lastLogUtcDateTime, nextLogUtcDateTime);
                         breakDuration = (lastUtcDateTime - lastLogUtcDateTime) / 1000L;
                     }
 
@@ -6594,25 +8038,30 @@ public class DispatchServiceImpl implements DispatchService {
                         sDebug = sDebug + " ### Shift Change :\n";
                     } else {
                         if (isBreak) {
-                            remainingDutyTime = this.CalculateRemainingTime(totalSeconds + breakDuration, remainingDutyTime);
-                            remainingWeeklyTime = this.CalculateRemainingTime(totalSeconds + breakDuration, remainingWeeklyTime);
+                            remainingDutyTime = this.CalculateRemainingTime(totalSeconds + breakDuration,
+                                    remainingDutyTime);
+                            remainingWeeklyTime = this.CalculateRemainingTime(totalSeconds + breakDuration,
+                                    remainingWeeklyTime);
                         } else {
                             remainingDutyTime = this.CalculateRemainingTime(-breakDuration, remainingDutyTime);
                             remainingWeeklyTime = this.CalculateRemainingTime(-breakDuration, remainingWeeklyTime);
                         }
 
-                        sDebug = sDebug + " >> BD : " + breakDuration + " :: " + remainingDutyTime + " : " + remainingWeeklyTime + "\n";
+                        sDebug = sDebug + " >> BD : " + breakDuration + " :: " + remainingDutyTime + " : "
+                                + remainingWeeklyTime + "\n";
                         days = driveringStatusList.get(i).getDays();
                         shift = driveringStatusList.get(i).getShift();
                         currentUtcDateTime = driveringStatusList.get(i).getUtcDateTime();
                         if (days == lastDays && lastDays > 0) {
-                            this.UpdateRemainingCalculationData(driverId, objId, remainingDriveTime, remainingDutyTime, remainingWeeklyTime);
+                            this.UpdateRemainingCalculationData(driverId, objId, remainingDriveTime, remainingDutyTime,
+                                    remainingWeeklyTime);
                         } else {
                             if (lastDays != 0 || i != 0) {
                                 break;
                             }
 
-                            this.UpdateRemainingCalculationData(driverId, objId, remainingDriveTime, remainingDutyTime, remainingWeeklyTime);
+                            this.UpdateRemainingCalculationData(driverId, objId, remainingDriveTime, remainingDutyTime,
+                                    remainingWeeklyTime);
                         }
 
                         lastDays = days;
@@ -6626,7 +8075,8 @@ public class DispatchServiceImpl implements DispatchService {
         }
     }
 
-    public void CheckAllVoilations_withsplit(long driverId, long from, long to, long l15toDate, int logShift, int logDays) {
+    public void CheckAllVoilations_withsplit(long driverId, long from, long to, long l15toDate, int logShift,
+            int logDays) {
         long secondShift = 122400L;
         long secondSleep = 36000L;
         long continueDriveSeconds = 28800L;
@@ -6674,9 +8124,9 @@ public class DispatchServiceImpl implements DispatchService {
             boolean isVoilationCreate = false;
             long previousMidnightTimestamp = from - 86400000L;
             List<DriveringStatusLogViewDto> driveringStatusList = this.loockupDriveringStatusDataForOneDay(
-                    driverId, previousMidnightTimestamp, l15toDate, logShift, logDays
-            );
-            sDebug = sDebug + "from : " + previousMidnightTimestamp + " to : " + to + " Size : " + driveringStatusList.size() + " : " + driverId + "\n";
+                    driverId, previousMidnightTimestamp, l15toDate, logShift, logDays);
+            sDebug = sDebug + "from : " + previousMidnightTimestamp + " to : " + to + " Size : "
+                    + driveringStatusList.size() + " : " + driverId + "\n";
 
             for (int i = 0; i < driveringStatusList.size(); ++i) {
                 if (i == 0) {
@@ -6686,7 +8136,8 @@ public class DispatchServiceImpl implements DispatchService {
                 }
 
                 currentUtcDateTime = driveringStatusList.get(i).getUtcDateTime();
-                LocalDate currentLocalDate = Instant.ofEpochMilli(currentUtcDateTime).atZone(ZoneId.systemDefault()).toLocalDate();
+                LocalDate currentLocalDate = Instant.ofEpochMilli(currentUtcDateTime).atZone(ZoneId.systemDefault())
+                        .toLocalDate();
                 sCurrentStatus = driveringStatusList.get(i).getStatus();
                 shift = driveringStatusList.get(i).getShift();
                 days = driveringStatusList.get(i).getDays();
@@ -6786,23 +8237,29 @@ public class DispatchServiceImpl implements DispatchService {
                             + " Cycle | "
                             + remainingWeeklyTime
                             + "\n";
-                    this.UpdateRemainingCalculationData(driverId, objId, remainingDriveTime, remainingDutyTime, remainingWeeklyTime);
+                    this.UpdateRemainingCalculationData(driverId, objId, remainingDriveTime, remainingDutyTime,
+                            remainingWeeklyTime);
                     if (totalContinueDrive > continueDriveSeconds && !isDayChange) {
                         int count = this.driveringStatusRepo.countVoilationRecords(driverId, from, to, 1, 8);
                         if (count <= 0) {
-                            String logType = "You are continuously driving for " + cycleUsaData.getContinueDriveTime() + " hours";
+                            String logType = "You are continuously driving for " + cycleUsaData.getContinueDriveTime()
+                                    + " hours";
                             int voilationHour = (int) cycleUsaData.getOnSleepTime();
-                            long voilationUtcDateTime = currentUtcDateTime - Math.abs(continueDriveSeconds - totalContinueDrive) * 1000L;
-                            this.SaveVoilations(driveringStatusList.get(i), logType, voilationHour, voilationUtcDateTime);
+                            long voilationUtcDateTime = currentUtcDateTime
+                                    - Math.abs(continueDriveSeconds - totalContinueDrive) * 1000L;
+                            this.SaveVoilations(driveringStatusList.get(i), logType, voilationHour,
+                                    voilationUtcDateTime);
                         }
                     }
 
                     if (days == lastDays && lastDays > 0 && !isDayChange) {
-                        this.CheckVoilations(driveringStatusList.get(i), remainingDutyTime, remainingDriveTime, remainingWeeklyTime, currentUtcDateTime, from, to);
+                        this.CheckVoilations(driveringStatusList.get(i), remainingDutyTime, remainingDriveTime,
+                                remainingWeeklyTime, currentUtcDateTime, from, to);
                     }
 
                     if (sPreviousStatus.equals("OnSleep") || sPreviousStatus.equals("OffDuty")) {
-                        this.checkSplitSleepViolation(driveringStatusList.get(i), duration, currentLocalDate, currentUtcDateTime, driverId, sPreviousStatus);
+                        this.checkSplitSleepViolation(driveringStatusList.get(i), duration, currentLocalDate,
+                                currentUtcDateTime, driverId, sPreviousStatus);
                     }
                 }
 
@@ -6826,8 +8283,8 @@ public class DispatchServiceImpl implements DispatchService {
     }
 
     public void checkSplitSleepViolation(
-            DriveringStatusLogViewDto log, long duration, LocalDate currentLocalDate, long currentUtcDateTime, long driverId, String status
-    ) {
+            DriveringStatusLogViewDto log, long duration, LocalDate currentLocalDate, long currentUtcDateTime,
+            long driverId, String status) {
         if (status.equals("OnSleep") || status.equals("OffDuty")) {
             if (duration >= 7200L && duration < 25200L) {
                 this.splitSleep1 = duration;
@@ -6881,7 +8338,8 @@ public class DispatchServiceImpl implements DispatchService {
             long breakTimeSeconds = cycleUsaData.getBreakTime() * 60L;
             long totalDutySeconds = cycleUsaData.getOnDutyTime() * 3600L;
             long previousMidnightTimestamp = from - 86400000L;
-            List<DriveringStatusLogViewDto> list = this.loockupDriveringStatusDataForOneDay(driverId, previousMidnightTimestamp, l15toDate, logShift, logDays);
+            List<DriveringStatusLogViewDto> list = this.loockupDriveringStatusDataForOneDay(driverId,
+                    previousMidnightTimestamp, l15toDate, logShift, logDays);
             DriveringStatusLogViewDto lastObj = null;
 
             for (int i = 0; i < list.size(); ++i) {
@@ -6947,12 +8405,15 @@ public class DispatchServiceImpl implements DispatchService {
 
                     if (totalContinueDrive > continueDriveSeconds && !is8Created) {
                         long violationTime = currentUtcDateTime - (totalContinueDrive - continueDriveSeconds) * 1000L;
-                        this.SaveVoilations(data, "You are continuously driving for " + continueDriveSeconds / 3600L + " hours", 8, violationTime);
+                        this.SaveVoilations(data,
+                                "You are continuously driving for " + continueDriveSeconds / 3600L + " hours", 8,
+                                violationTime);
                         is8Created = true;
                     }
 
                     boolean[] flags = new boolean[]{is11Created, is70Created};
-                    flags = this.CheckVoilationsUpdated(data, remainingDutyTime, remainingDriveTime, remainingWeeklyTime, currentUtcDateTime, from, to, flags);
+                    flags = this.CheckVoilationsUpdated(data, remainingDutyTime, remainingDriveTime,
+                            remainingWeeklyTime, currentUtcDateTime, from, to, flags);
                     is11Created = flags[0];
                     is70Created = flags[1];
                     if (shiftStartTime > 0L && !is14Created) {
@@ -6981,7 +8442,9 @@ public class DispatchServiceImpl implements DispatchService {
                 }
 
                 if (totalContinueDrive > continueDriveSeconds && !is8Created) {
-                    this.SaveVoilations(lastObj, "You are continuously driving for " + continueDriveSeconds / 3600L + " hours", 8, l15toDate);
+                    this.SaveVoilations(lastObj,
+                            "You are continuously driving for " + continueDriveSeconds / 3600L + " hours", 8,
+                            l15toDate);
                     is8Created = true;
                 }
 
@@ -6995,7 +8458,8 @@ public class DispatchServiceImpl implements DispatchService {
                 }
 
                 boolean[] flags = new boolean[]{is11Created, is70Created};
-                flags = this.CheckVoilationsUpdated(lastObj, remainingDutyTime, remainingDriveTime, remainingWeeklyTime, l15toDate, from, to, flags);
+                flags = this.CheckVoilationsUpdated(lastObj, remainingDutyTime, remainingDriveTime, remainingWeeklyTime,
+                        l15toDate, from, to, flags);
             }
 
             this.SaveLog(sDebug);
@@ -7012,8 +8476,7 @@ public class DispatchServiceImpl implements DispatchService {
             long currentUtcDateTime,
             long from,
             long to,
-            boolean[] flags
-    ) {
+            boolean[] flags) {
         boolean is11Created = flags[0];
         boolean is70Created = flags[1];
         long driverId = data.getDriverId();
@@ -7021,13 +8484,15 @@ public class DispatchServiceImpl implements DispatchService {
         CycleUsa cycleUsaData = this.cycleUsaRepo.findByCycleUsaId((int) empDetails.getCycleUsaId());
         if (remainingDriveTime < 0L && !is11Created) {
             long violationTime = currentUtcDateTime - Math.abs(remainingDriveTime) * 1000L;
-            this.SaveVoilations(data, "Your drive time exceeded " + cycleUsaData.getOnDriveTime() + " hours", 11, violationTime);
+            this.SaveVoilations(data, "Your drive time exceeded " + cycleUsaData.getOnDriveTime() + " hours", 11,
+                    violationTime);
             is11Created = true;
         }
 
         if (remainingWeeklyTime < 0L && !is70Created) {
             long violationTime = currentUtcDateTime - Math.abs(remainingWeeklyTime) * 1000L;
-            this.SaveVoilations(data, "Your weekly cycle exceeded " + cycleUsaData.getCycleHour() + " hours", 70, violationTime);
+            this.SaveVoilations(data, "Your weekly cycle exceeded " + cycleUsaData.getCycleHour() + " hours", 70,
+                    violationTime);
             is70Created = true;
         }
 
@@ -7094,9 +8559,9 @@ public class DispatchServiceImpl implements DispatchService {
             boolean isVoilationCreate = false;
             long previousMidnightTimestamp = from - 86400000L;
             List<DriveringStatusLogViewDto> driveringStatusList = this.loockupDriveringStatusDataForOneDay(
-                    driverId, previousMidnightTimestamp, l15toDate, logShift, logDays
-            );
-            sDebug = sDebug + "from : " + previousMidnightTimestamp + " to : " + to + "Size : " + driveringStatusList.size() + " : " + driverId + "\n";
+                    driverId, previousMidnightTimestamp, l15toDate, logShift, logDays);
+            sDebug = sDebug + "from : " + previousMidnightTimestamp + " to : " + to + "Size : "
+                    + driveringStatusList.size() + " : " + driverId + "\n";
             ObjectId objId = null;
             DriveringStatusLogViewDto driveringStatusListData = null;
             long duration = 0L;
@@ -7109,7 +8574,8 @@ public class DispatchServiceImpl implements DispatchService {
                 }
 
                 currentUtcDateTime = driveringStatusList.get(i).getUtcDateTime();
-                LocalDate currentLocalDate = Instant.ofEpochMilli(currentUtcDateTime).atZone(ZoneId.systemDefault()).toLocalDate();
+                LocalDate currentLocalDate = Instant.ofEpochMilli(currentUtcDateTime).atZone(ZoneId.systemDefault())
+                        .toLocalDate();
                 sCurrentStatus = driveringStatusList.get(i).getStatus();
                 shift = driveringStatusList.get(i).getShift();
                 days = driveringStatusList.get(i).getDays();
@@ -7254,15 +8720,19 @@ public class DispatchServiceImpl implements DispatchService {
                     if (totalContinueDrive > continueDriveSeconds && !isDayChange) {
                         int count = this.driveringStatusRepo.countVoilationRecords(driverId, from, to, 1, 8);
                         if (count <= 0) {
-                            String logType = "You are continuously driving for " + cycleUsaData.getContinueDriveTime() + " hours";
+                            String logType = "You are continuously driving for " + cycleUsaData.getContinueDriveTime()
+                                    + " hours";
                             int voilationHour = (int) cycleUsaData.getOnSleepTime();
-                            long voilationUtcDateTime = currentUtcDateTime - Math.abs(continueDriveSeconds - totalContinueDrive) * 1000L;
-                            this.SaveVoilations(driveringStatusList.get(i), logType, voilationHour, voilationUtcDateTime);
+                            long voilationUtcDateTime = currentUtcDateTime
+                                    - Math.abs(continueDriveSeconds - totalContinueDrive) * 1000L;
+                            this.SaveVoilations(driveringStatusList.get(i), logType, voilationHour,
+                                    voilationUtcDateTime);
                         }
                     }
 
                     if (days == lastDays && lastDays > 0 && !isDayChange) {
-                        this.CheckVoilations(driveringStatusList.get(i), remainingDutyTime, remainingDriveTime, remainingWeeklyTime, currentUtcDateTime, from, to);
+                        this.CheckVoilations(driveringStatusList.get(i), remainingDutyTime, remainingDriveTime,
+                                remainingWeeklyTime, currentUtcDateTime, from, to);
                     }
                 }
 
@@ -7374,15 +8844,18 @@ public class DispatchServiceImpl implements DispatchService {
                 if (totalContinueDrive > continueDriveSeconds && !isDayChange) {
                     int count = this.driveringStatusRepo.countVoilationRecords(driverId, from, to, 1, 8);
                     if (count <= 0) {
-                        String logType = "You are continuously driving for " + cycleUsaData.getContinueDriveTime() + " hours";
+                        String logType = "You are continuously driving for " + cycleUsaData.getContinueDriveTime()
+                                + " hours";
                         int voilationHour = (int) cycleUsaData.getOnSleepTime();
-                        long voilationUtcDateTime = currentUtcDateTime - Math.abs(continueDriveSeconds - totalContinueDrive) * 1000L;
+                        long voilationUtcDateTime = currentUtcDateTime
+                                - Math.abs(continueDriveSeconds - totalContinueDrive) * 1000L;
                         this.SaveVoilations(driveringStatusListData, logType, voilationHour, voilationUtcDateTime);
                     }
                 }
 
                 if (days == lastDays && lastDays > 0 && !isDayChange) {
-                    this.CheckVoilations(driveringStatusListData, remainingDutyTime, remainingDriveTime, remainingWeeklyTime, currentUtcDateTime, from, to);
+                    this.CheckVoilations(driveringStatusListData, remainingDutyTime, remainingDriveTime,
+                            remainingWeeklyTime, currentUtcDateTime, from, to);
                 }
             }
 
@@ -7393,22 +8866,25 @@ public class DispatchServiceImpl implements DispatchService {
     }
 
     public boolean CheckBreak(
-            String currentStatus, String previousStatus, String nextStatus, long currentUtcDateTime, long lastLogUtcDateTime, long nextLogUtcDateTime
-    ) {
+            String currentStatus, String previousStatus, String nextStatus, long currentUtcDateTime,
+            long lastLogUtcDateTime, long nextLogUtcDateTime) {
         long breakTimeSeconds = 1800L;
         long splitSleepSeconds = 7200L;
         boolean isBreak = false;
-        if ((currentStatus.equals("OffDuty") || currentStatus.equals("OnSleep")) && (previousStatus.equals("OnDrive") || previousStatus.equals("OnDuty"))) {
+        if ((currentStatus.equals("OffDuty") || currentStatus.equals("OnSleep"))
+                && (previousStatus.equals("OnDrive") || previousStatus.equals("OnDuty"))) {
             long duration = (currentUtcDateTime - lastLogUtcDateTime) / 1000L;
             if (duration > breakTimeSeconds || duration > splitSleepSeconds) {
                 isBreak = true;
             }
-        } else if ((currentStatus.equals("OffDuty") || currentStatus.equals("OnSleep")) && (nextStatus.equals("OnDrive") || nextStatus.equals("OnDuty"))) {
+        } else if ((currentStatus.equals("OffDuty") || currentStatus.equals("OnSleep"))
+                && (nextStatus.equals("OnDrive") || nextStatus.equals("OnDuty"))) {
             long duration = (nextLogUtcDateTime - currentUtcDateTime) / 1000L;
             if (duration > breakTimeSeconds || duration > splitSleepSeconds) {
                 isBreak = true;
             }
-        } else if ((previousStatus.equals("OffDuty") || previousStatus.equals("OnSleep")) && (currentStatus.equals("OnDrive") || currentStatus.equals("OnDuty"))) {
+        } else if ((previousStatus.equals("OffDuty") || previousStatus.equals("OnSleep"))
+                && (currentStatus.equals("OnDrive") || currentStatus.equals("OnDuty"))) {
             long duration = (currentUtcDateTime - lastLogUtcDateTime) / 1000L;
             if (duration > breakTimeSeconds || duration > splitSleepSeconds) {
                 isBreak = true;
@@ -7419,34 +8895,38 @@ public class DispatchServiceImpl implements DispatchService {
     }
 
     public void CheckVoilations(
-            DriveringStatusLogViewDto data, long remainingDutyTime, long remainingDriveTime, long remainingWeeklyTime, long currentUtcDateTime, long from, long to
-    ) {
+            DriveringStatusLogViewDto data, long remainingDutyTime, long remainingDriveTime, long remainingWeeklyTime,
+            long currentUtcDateTime, long from, long to) {
         long driverId = data.getDriverId();
         String sDebug = "Voilation : ";
         EmployeeMaster empDetails = this.employeeMasterRepo.findByEmployeeId((int) driverId);
         CycleUsa cycleUsaData = this.cycleUsaRepo.findByCycleUsaId((int) empDetails.getCycleUsaId());
 
         try {
-            sDebug = sDebug + " OD : " + remainingDutyTime + " : ODR : " + remainingDriveTime + " : Cycle : " + remainingWeeklyTime + "\n";
+            sDebug = sDebug + " OD : " + remainingDutyTime + " : ODR : " + remainingDriveTime + " : Cycle : "
+                    + remainingWeeklyTime + "\n";
             this.SaveLog(sDebug);
             if (remainingDutyTime < 0L) {
                 long time = currentUtcDateTime - Math.abs(remainingDutyTime) * 1000L;
                 if (!this.existsSameViolation(driverId, 14, time)) {
-                    this.SaveVoilations(data, "Your onduty time exceeded " + cycleUsaData.getOnDutyTime() + " hours", 14, time);
+                    this.SaveVoilations(data, "Your onduty time exceeded " + cycleUsaData.getOnDutyTime() + " hours",
+                            14, time);
                 }
             }
 
             if (remainingDriveTime < 0L) {
                 long time = currentUtcDateTime - Math.abs(remainingDriveTime) * 1000L;
                 if (!this.existsSameViolation(driverId, 11, time)) {
-                    this.SaveVoilations(data, "Your drive time exceeded " + cycleUsaData.getOnDriveTime() + " hours", 11, time);
+                    this.SaveVoilations(data, "Your drive time exceeded " + cycleUsaData.getOnDriveTime() + " hours",
+                            11, time);
                 }
             }
 
             if (remainingWeeklyTime < 0L) {
                 long time = currentUtcDateTime - Math.abs(remainingWeeklyTime) * 1000L;
                 if (!this.existsSameViolation(driverId, 70, time)) {
-                    this.SaveVoilations(data, "Your weekly cycle exceeded " + cycleUsaData.getCycleHour() + " hours", 70, time);
+                    this.SaveVoilations(data, "Your weekly cycle exceeded " + cycleUsaData.getCycleHour() + " hours",
+                            70, time);
                 }
             }
         } catch (Exception var21) {
@@ -7483,8 +8963,7 @@ public class DispatchServiceImpl implements DispatchService {
             long remainingWeeklyTime,
             long currentUtcDateTime,
             long midnightTimestamp,
-            long currentDayEndTime
-    ) {
+            long currentDayEndTime) {
         String sDebug = "";
         String logType = "";
         int voilationHour = 0;
@@ -7494,9 +8973,11 @@ public class DispatchServiceImpl implements DispatchService {
         CycleUsa cycleUsaData = this.cycleUsaRepo.findByCycleUsaId((int) empDetails.getCycleUsaId());
 
         try {
-            sDebug = sDebug + " >> Voilation : DU : " + remainingDutyTime + " | OD : " + remainingDriveTime + " | Cycle : " + remainingWeeklyTime + "\n";
+            sDebug = sDebug + " >> Voilation : DU : " + remainingDutyTime + " | OD : " + remainingDriveTime
+                    + " | Cycle : " + remainingWeeklyTime + "\n";
             if (remainingDutyTime < 0L) {
-                int count = this.driveringStatusRepo.countVoilationRecords(driverId, midnightTimestamp, currentDayEndTime, 1, 14);
+                int count = this.driveringStatusRepo.countVoilationRecords(driverId, midnightTimestamp,
+                        currentDayEndTime, 1, 14);
                 if (count <= 0) {
                     logType = "Your onduty time has been exceeded to " + cycleUsaData.getOnDutyTime() + " hours";
                     voilationHour = (int) cycleUsaData.getOnDutyTime();
@@ -7506,7 +8987,8 @@ public class DispatchServiceImpl implements DispatchService {
             }
 
             if (remainingDriveTime < 0L) {
-                int count = this.driveringStatusRepo.countVoilationRecords(driverId, midnightTimestamp, currentDayEndTime, 1, 11);
+                int count = this.driveringStatusRepo.countVoilationRecords(driverId, midnightTimestamp,
+                        currentDayEndTime, 1, 11);
                 if (count <= 0) {
                     logType = "Your drive time has been exceeded to " + cycleUsaData.getOnDriveTime() + " hours";
                     voilationHour = (int) cycleUsaData.getOnDriveTime();
@@ -7516,7 +8998,8 @@ public class DispatchServiceImpl implements DispatchService {
             }
 
             if (remainingWeeklyTime < 0L) {
-                int count = this.driveringStatusRepo.countVoilationRecords(driverId, midnightTimestamp, currentDayEndTime, 1, 70);
+                int count = this.driveringStatusRepo.countVoilationRecords(driverId, midnightTimestamp,
+                        currentDayEndTime, 1, 70);
                 if (count <= 0) {
                     logType = "Your weekly cycle has been exceeded to " + cycleUsaData.getCycleHour() + " hours";
                     voilationHour = (int) cycleUsaData.getCycleHour();
@@ -7531,11 +9014,13 @@ public class DispatchServiceImpl implements DispatchService {
         }
     }
 
-    public void UpdateRemainingCalculationData(long driverId, ObjectId objId, long remainingDriveTime, long remainingDutyTime, long remainingWeeklyTime) {
+    public void UpdateRemainingCalculationData(long driverId, ObjectId objId, long remainingDriveTime,
+            long remainingDutyTime, long remainingWeeklyTime) {
         String sDebug = "$$$";
 
         try {
-            sDebug = sDebug + "Drive : " + remainingDriveTime + ", Duty : " + remainingDutyTime + ", Cycle : " + remainingWeeklyTime + "\n";
+            sDebug = sDebug + "Drive : " + remainingDriveTime + ", Duty : " + remainingDutyTime + ", Cycle : "
+                    + remainingWeeklyTime + "\n";
             Query query = new Query();
             Update update = new Update();
             query.addCriteria(Criteria.where("_id").is(objId));
@@ -7562,7 +9047,8 @@ public class DispatchServiceImpl implements DispatchService {
         return String.format("%02d:%02d:%02d", hours, minutes, seconds);
     }
 
-    public List<DriveringStatusLogViewDto> loockupDriveringStatusDataForOneDay(long driverId, long from, long to, int logShift, int logDays) {
+    public List<DriveringStatusLogViewDto> loockupDriveringStatusDataForOneDay(long driverId, long from, long to,
+            int logShift, int logDays) {
         Query queryData = new Query(
                 Criteria.where("driverId")
                         .is(driverId)
@@ -7576,14 +9062,14 @@ public class DispatchServiceImpl implements DispatchService {
                         .and("isVoilation")
                         .is(0)
                         .and("isVisible")
-                        .is(1)
-        );
+                        .is(1));
         queryData.with(Sort.by(Direction.ASC, new String[]{"utcDateTime"}));
         return this.mongoTemplate.find(queryData, DriveringStatusLogViewDto.class, "drivering_status");
     }
 
     public List<DriveringStatusLogViewDto> loockupDriveringStatusData(long driverId, long from, long to) {
-        Query queryData = new Query(Criteria.where("driverId").is(driverId).and("utcDateTime").gte(from).lte(to).and("isVoilation").is(0).and("isActive").is(1));
+        Query queryData = new Query(Criteria.where("driverId").is(driverId).and("utcDateTime").gte(from).lte(to)
+                .and("isVoilation").is(0).and("isActive").in(0, 2));
         queryData.with(Sort.by(Direction.ASC, new String[]{"utcDateTime"}));
         return this.mongoTemplate.find(queryData, DriveringStatusLogViewDto.class, "drivering_status");
     }
@@ -7625,7 +9111,8 @@ public class DispatchServiceImpl implements DispatchService {
     public List<DriveringStatusViewDto> lookupDriverStatusDataOperation(long from, long to, long driverId) {
         MatchOperation filter = null;
         if (driverId > 0L) {
-            filter = Aggregation.match(Criteria.where("utcDateTime").gte(from).lte(to).and("driverId").is(driverId).and("isVisible").is(1));
+            filter = Aggregation.match(Criteria.where("utcDateTime").gte(from).lte(to).and("driverId").is(driverId)
+                    .and("isVisible").is(1));
         } else {
             filter = Aggregation.match(Criteria.where("utcDateTime").gte(from).lte(to).and("isVisible").is(1));
         }
@@ -7662,17 +9149,20 @@ public class DispatchServiceImpl implements DispatchService {
                     "shift",
                     "days",
                     "_id",
-                    "isActive"
-                }
-        );
+                    "isActive",
+                    "diagnosticIndicator",
+                    "malfunctionIndicator"
+                });
         Aggregation aggregation = Aggregation.newAggregation(
-                new AggregationOperation[]{filter, projectStage, Aggregation.sort(Direction.DESC, new String[]{"utcDateTime"})}
-        );
-        return this.mongoTemplate.aggregate(aggregation, "drivering_status", DriveringStatusViewDto.class).getMappedResults();
+                new AggregationOperation[]{filter, projectStage,
+                    Aggregation.sort(Direction.DESC, new String[]{"utcDateTime"})});
+        return this.mongoTemplate.aggregate(aggregation, "drivering_status", DriveringStatusViewDto.class)
+                .getMappedResults();
     }
 
     @Override
-    public ResultWrapper<List<EmployeeMasterViewDto>> ViewAllDriverStatus(DriveringStatusCRUDDto driveringStatusCRUDDto) {
+    public ResultWrapper<List<EmployeeMasterViewDto>> ViewAllDriverStatus(
+            DriveringStatusCRUDDto driveringStatusCRUDDto) {
         ResultWrapper<List<EmployeeMasterViewDto>> result = new ResultWrapper<>();
 
         try {
@@ -7690,10 +9180,12 @@ public class DispatchServiceImpl implements DispatchService {
 
             for (int i = 0; i < driveringStatusViewDto.size(); ++i) {
                 DriverWorkingStatus driverWorkingStatus = this.driverWorkingStatusRepo
-                        .findAndViewDriverWorkingstatusByDriverId((long) driveringStatusViewDto.get(i).getEmployeeId().intValue());
+                        .findAndViewDriverWorkingstatusByDriverId(
+                                (long) driveringStatusViewDto.get(i).getEmployeeId().intValue());
 
                 try {
-                    MainTerminalMaster mainTerminal = this.mainTerminalMasterRepo.findByMainTerminalId((int) driveringStatusViewDto.get(i).getMainTerminalId());
+                    MainTerminalMaster mainTerminal = this.mainTerminalMasterRepo
+                            .findByMainTerminalId((int) driveringStatusViewDto.get(i).getMainTerminalId());
                     if (mainTerminal.getStateId() > 0L) {
                         StateMaster stateInfo = this.stateMasterRepo.findByStateId((int) mainTerminal.getStateId());
                         driveringStatusViewDto.get(i).setTimezoneName(stateInfo.getTimeZone());
@@ -7706,9 +9198,11 @@ public class DispatchServiceImpl implements DispatchService {
                     long minutes = Math.abs(Long.parseLong(splitStr[1]));
                     long timestampValue = 0L;
                     if (timezoneOffSet.substring(0, 1).equals("-")) {
-                        timestampValue = driveringStatusViewDto.get(i).getUpdatedTimestamp() - (hour * 60L + minutes) * 60000L;
+                        timestampValue = driveringStatusViewDto.get(i).getUpdatedTimestamp()
+                                - (hour * 60L + minutes) * 60000L;
                     } else {
-                        timestampValue = driveringStatusViewDto.get(i).getUpdatedTimestamp() + (hour * 60L + minutes) * 60000L;
+                        timestampValue = driveringStatusViewDto.get(i).getUpdatedTimestamp()
+                                + (hour * 60L + minutes) * 60000L;
                     }
 
                     driveringStatusViewDto.get(i).setUpdatedTimestamp(timestampValue);
@@ -7728,12 +9222,16 @@ public class DispatchServiceImpl implements DispatchService {
                     driveringStatusViewDto.get(i).setWeeklyTime(weeklyTime);
                     driveringStatusViewDto.get(i).setOnBreak(onBreak);
                     Pageable pageableRequest = PageRequest.of(0, 1, Sort.by(new String[]{"_id"}).descending());
-                    Query query = new Query(Criteria.where("driverId").is(driveringStatusViewDto.get(i).getEmployeeId()));
+                    Query query = new Query(
+                            Criteria.where("driverId").is(driveringStatusViewDto.get(i).getEmployeeId()));
                     query.limit(1);
                     query.with(pageableRequest);
-                    List<DriveringStatusViewDto> driveringStatusViewDtoData = this.mongoTemplate.find(query, DriveringStatusViewDto.class, "drivering_status");
-                    driveringStatusViewDto.get(i).setCurrentLocation(driveringStatusViewDtoData.get(0).getCustomLocation());
-                    DeviceStatus deviceStatus = this.deviceStatusRepo.findByDeviceStatusId((long) driveringStatusViewDto.get(i).getEmployeeId().intValue());
+                    List<DriveringStatusViewDto> driveringStatusViewDtoData = this.mongoTemplate.find(query,
+                            DriveringStatusViewDto.class, "drivering_status");
+                    driveringStatusViewDto.get(i)
+                            .setCurrentLocation(driveringStatusViewDtoData.get(0).getCustomLocation());
+                    DeviceStatus deviceStatus = this.deviceStatusRepo
+                            .findByDeviceStatusId((long) driveringStatusViewDto.get(i).getEmployeeId().intValue());
                     driveringStatusViewDto.get(i).setDeviceStatus(deviceStatus.getStatus());
                 } catch (Exception var29) {
                     var29.printStackTrace();
@@ -7759,7 +9257,8 @@ public class DispatchServiceImpl implements DispatchService {
     public List<EmployeeMasterViewDto> lookupEmployeeMasterOperation(Integer employeeId, long clientId) {
         MatchOperation filter = null;
         if (employeeId > 0) {
-            filter = Aggregation.match(Criteria.where("employeeId").is(employeeId).and("clientId").is(clientId).and("isFirstLogin").is("false"));
+            filter = Aggregation.match(Criteria.where("employeeId").is(employeeId).and("clientId").is(clientId)
+                    .and("isFirstLogin").is("false"));
         } else {
             filter = Aggregation.match(Criteria.where("clientId").is(clientId).and("isFirstLogin").is("false"));
         }
@@ -7814,10 +9313,10 @@ public class DispatchServiceImpl implements DispatchService {
                     "shortHaulException",
                     "unlimitedTrailers",
                     "unlimitedShippingDocs"
-                }
-        )
+                })
                 .andExclude(new String[]{"_id"});
-        LookupOperation client_master = LookupOperation.newLookup().from("client_master").localField("clientId").foreignField("clientId").as("client_master");
+        LookupOperation client_master = LookupOperation.newLookup().from("client_master").localField("clientId")
+                .foreignField("clientId").as("client_master");
         LookupOperation cycle_usa_master = LookupOperation.newLookup()
                 .from("cycle_usa_master")
                 .localField("cycleUsaId")
@@ -7838,13 +9337,15 @@ public class DispatchServiceImpl implements DispatchService {
                 .localField("cdlCountryId")
                 .foreignField("countryId")
                 .as("country_master");
-        LookupOperation state_master = LookupOperation.newLookup().from("state_master").localField("cdlStateId").foreignField("stateId").as("state_master");
+        LookupOperation state_master = LookupOperation.newLookup().from("state_master").localField("cdlStateId")
+                .foreignField("stateId").as("state_master");
         LookupOperation cargo_type_master = LookupOperation.newLookup()
                 .from("cargo_type_master")
                 .localField("cargoTypeId")
                 .foreignField("cargoTypeId")
                 .as("cargo_type_master");
-        LookupOperation vehicle_master = LookupOperation.newLookup().from("vehicle_master").localField("truckNo").foreignField("vehicleId").as("vehicle_master");
+        LookupOperation vehicle_master = LookupOperation.newLookup().from("vehicle_master").localField("truckNo")
+                .foreignField("vehicleId").as("vehicle_master");
         Aggregation aggregation = Aggregation.newAggregation(
                 new AggregationOperation[]{
                     filter,
@@ -7857,13 +9358,14 @@ public class DispatchServiceImpl implements DispatchService {
                     cargo_type_master,
                     vehicle_master,
                     projectStage
-                }
-        );
-        return this.mongoTemplate.aggregate(aggregation, "employee_master", EmployeeMasterViewDto.class).getMappedResults();
+                });
+        return this.mongoTemplate.aggregate(aggregation, "employee_master", EmployeeMasterViewDto.class)
+                .getMappedResults();
     }
 
     @Override
-    public ResultWrapper<List<DriveringStatusViewDto>> ViewDriverWorkingStatus(DriveringStatusCRUDDto driveringStatusCRUDDto) {
+    public ResultWrapper<List<DriveringStatusViewDto>> ViewDriverWorkingStatus(
+            DriveringStatusCRUDDto driveringStatusCRUDDto) {
         ResultWrapper<List<DriveringStatusViewDto>> result = new ResultWrapper<>();
 
         try {
@@ -7874,9 +9376,11 @@ public class DispatchServiceImpl implements DispatchService {
                 Query query = new Query(Criteria.where("driverId").is(driverId).and("status").is("OnDuty"));
                 query.limit(1);
                 query.with(pageableRequest);
-                List<DriveringStatusViewDto> driveringStatusViewDto = this.mongoTemplate.find(query, DriveringStatusViewDto.class, "drivering_status");
+                List<DriveringStatusViewDto> driveringStatusViewDto = this.mongoTemplate.find(query,
+                        DriveringStatusViewDto.class, "drivering_status");
                 long fromDate = driveringStatusViewDto.get(0).getLDateTime();
-                LocalDateTime currentDateTime = LocalDateTime.ofInstant(Instant.ofEpochMilli(fromDate), TimeZone.getDefault().toZoneId());
+                LocalDateTime currentDateTime = LocalDateTime.ofInstant(Instant.ofEpochMilli(fromDate),
+                        TimeZone.getDefault().toZoneId());
                 currentDateTime = currentDateTime.plusDays(1L);
                 long toDate = currentDateTime.atZone(ZoneId.systemDefault()).toInstant().toEpochMilli();
                 driveringStatusViewDto = this.lookupDriverStatusDataOperation(fromDate, toDate, driverId);
@@ -7916,8 +9420,11 @@ public class DispatchServiceImpl implements DispatchService {
             for (int i = 0; i < liveDataLog.size(); ++i) {
                 if (liveDataLog.get(i).getVehicleId() != null && !liveDataLog.get(i).getVehicleId().equals("")) {
                     try {
-                        VehicleMaster vehcileInfo = this.vehicleMasterRepo.findByVehicleId(Integer.parseInt(liveDataLog.get(i).getVehicleId()));
-                        liveDataLog.get(i).setVehicleName(vehcileInfo.getVehicleNo());
+                        VehicleMaster vehcileInfo = this.vehicleMasterRepo
+                                .findByVehicleId(Integer.parseInt(liveDataLog.get(i).getVehicleId()));
+                        if (vehcileInfo != null) {
+                            liveDataLog.get(i).setVehicleName(vehcileInfo.getVehicleNo());
+                        }
                     } catch (Exception var9) {
                         var9.printStackTrace();
                     }
@@ -7925,9 +9432,13 @@ public class DispatchServiceImpl implements DispatchService {
 
                 if (liveDataLog.get(i).getDriverId() != null && !liveDataLog.get(i).getDriverId().equals("")) {
                     try {
-                        EmployeeMaster empDetails = this.employeeMasterRepo.findByEmployeeId(Integer.parseInt(liveDataLog.get(i).getDriverId()));
-                        liveDataLog.get(i).setDriverName(empDetails.getFirstName() + " " + empDetails.getLastName());
-                        liveDataLog.get(i).setMobileNo(empDetails.getMobileNo());
+                        EmployeeMaster empDetails = this.employeeMasterRepo
+                                .findByEmployeeId(Integer.parseInt(liveDataLog.get(i).getDriverId()));
+                        if (empDetails != null) {
+                            liveDataLog.get(i)
+                                    .setDriverName(empDetails.getFirstName() + " " + empDetails.getLastName());
+                            liveDataLog.get(i).setMobileNo(empDetails.getMobileNo());
+                        }
                     } catch (Exception var8) {
                         var8.printStackTrace();
                     }
@@ -7970,12 +9481,11 @@ public class DispatchServiceImpl implements DispatchService {
                     "PlaceAddress",
                     "DriverId",
                     "VehicleId"
-                }
-        )
+                })
                 .andExclude(new String[]{"_id"});
         Aggregation aggregation = Aggregation.newAggregation(
-                new AggregationOperation[]{filter, projectStage, Aggregation.sort(Direction.ASC, new String[]{"DateTime"})}
-        );
+                new AggregationOperation[]{filter, projectStage,
+                    Aggregation.sort(Direction.ASC, new String[]{"DateTime"})});
         return this.mongoTemplate.aggregate(aggregation, "live_data_log", LiveDataLogViewDto.class).getMappedResults();
     }
 
@@ -7994,18 +9504,22 @@ public class DispatchServiceImpl implements DispatchService {
             LocalDateTime ldtToDate = LocalDateTime.parse(sToDate, formatter);
             long to = ldtToDate.atZone(ZoneId.systemDefault()).toInstant().toEpochMilli();
             sDebug = sDebug + " >> " + vehicleId + " :: " + from + " :: " + to + ",";
-            List<LiveDataLogViewDto> liveDataLog = this.lookupELDLogHistoryOperation(String.valueOf(vehicleId), from, to);
+            List<LiveDataLogViewDto> liveDataLog = this.lookupELDLogHistoryOperation(String.valueOf(vehicleId), from,
+                    to);
             sDebug = sDebug + "Size : " + liveDataLog.size() + ",";
 
             for (int i = 0; i < liveDataLog.size(); ++i) {
-                liveDataLog.get(i).setSpeed(Math.round(Double.valueOf(String.format("%.2f", (double) liveDataLog.get(i).getSpeed() * 0.62137119))));
+                liveDataLog.get(i).setSpeed(Math.round(
+                        Double.valueOf(String.format("%.2f", (double) liveDataLog.get(i).getSpeed() * 0.62137119))));
                 if (liveDataLog.get(i).getVehicleId() != null && !liveDataLog.get(i).getVehicleId().equals("")) {
-                    VehicleMaster vehcileInfo = this.vehicleMasterRepo.findByVehicleId(Integer.parseInt(liveDataLog.get(i).getVehicleId()));
+                    VehicleMaster vehcileInfo = this.vehicleMasterRepo
+                            .findByVehicleId(Integer.parseInt(liveDataLog.get(i).getVehicleId()));
                     liveDataLog.get(i).setVehicleName(vehcileInfo.getVehicleNo());
                 }
 
                 if (liveDataLog.get(i).getDriverId() != null && !liveDataLog.get(i).getDriverId().equals("")) {
-                    EmployeeMaster empDetails = this.employeeMasterRepo.findByEmployeeId(Integer.parseInt(liveDataLog.get(i).getDriverId()));
+                    EmployeeMaster empDetails = this.employeeMasterRepo
+                            .findByEmployeeId(Integer.parseInt(liveDataLog.get(i).getDriverId()));
                     liveDataLog.get(i).setDriverName(empDetails.getFirstName() + " " + empDetails.getLastName());
                     liveDataLog.get(i).setMobileNo(empDetails.getMobileNo());
                 }
@@ -8051,9 +9565,11 @@ public class DispatchServiceImpl implements DispatchService {
 
                 try {
                     GeofanceMaster lstGeofacne = this.geofanceMasterRepo.findByAreaIntersects(point);
-                    List<StateMaster> states = this.stateMasterRepo.findAndViewByGeofanceId((long) lstGeofacne.getGeoId().intValue());
+                    List<StateMaster> states = this.stateMasterRepo
+                            .findAndViewByGeofanceId((long) lstGeofacne.getGeoId().intValue());
                     Query query = new Query();
-                    query.addCriteria(Criteria.where("utcDateTime").is(eldLogData.get(i).getUtcDateTime()).and("DriverId").is(eldLogData.get(i).getDriverId()));
+                    query.addCriteria(Criteria.where("utcDateTime").is(eldLogData.get(i).getUtcDateTime())
+                            .and("DriverId").is(eldLogData.get(i).getDriverId()));
                     Update update = new Update();
                     update.set("stateId", states.get(0).getStateId());
                     update.set("geoStateId", lstGeofacne.getStateId());
@@ -8100,12 +9616,11 @@ public class DispatchServiceImpl implements DispatchService {
                     "DriverId",
                     "VehicleId",
                     "utcDateTime"
-                }
-        )
+                })
                 .andExclude(new String[]{"_id"});
         Aggregation aggregation = Aggregation.newAggregation(
-                new AggregationOperation[]{filter, projectStage, Aggregation.sort(Direction.ASC, new String[]{"utcDateTime"})}
-        );
+                new AggregationOperation[]{filter, projectStage,
+                    Aggregation.sort(Direction.ASC, new String[]{"utcDateTime"})});
         return this.mongoTemplate.aggregate(aggregation, "eld_log_data", ELDLogData.class).getMappedResults();
     }
 
@@ -8134,15 +9649,15 @@ public class DispatchServiceImpl implements DispatchService {
                     "PlaceAddress",
                     "DriverId",
                     "VehicleId"
-                }
-        )
+                })
                 .andExclude(new String[]{"_id"});
         Aggregation aggregation = Aggregation.newAggregation(new AggregationOperation[]{filter, projectStage});
         return this.mongoTemplate.aggregate(aggregation, "live_data_log", LiveDataLogViewDto.class).getMappedResults();
     }
 
     public List<LiveDataLogViewDto> lookupELDLogHistoryOperation(String vehicleId, long from, long to) {
-        MatchOperation filter = Aggregation.match(Criteria.where("utcDateTime").gte(from).lte(to).and("VehicleId").is(vehicleId).and("Speed").gt(0));
+        MatchOperation filter = Aggregation.match(
+                Criteria.where("utcDateTime").gte(from).lte(to).and("VehicleId").is(vehicleId).and("Speed").gt(0));
         ProjectionOperation projectStage = Aggregation.project(
                 new String[]{
                     "MAC",
@@ -8168,12 +9683,11 @@ public class DispatchServiceImpl implements DispatchService {
                     "VehicleId",
                     "utcDateTime",
                     "stateId"
-                }
-        )
+                })
                 .andExclude(new String[]{"_id"});
         Aggregation aggregation = Aggregation.newAggregation(
-                new AggregationOperation[]{filter, projectStage, Aggregation.sort(Direction.ASC, new String[]{"utcDateTime"})}
-        );
+                new AggregationOperation[]{filter, projectStage,
+                    Aggregation.sort(Direction.ASC, new String[]{"utcDateTime"})});
         return this.mongoTemplate.aggregate(aggregation, "eld_log_data", LiveDataLogViewDto.class).getMappedResults();
     }
 
@@ -8198,7 +9712,8 @@ public class DispatchServiceImpl implements DispatchService {
             String sanitizedFrom = sFromDate.replace(":", "_").replace("-", "_").replace(" ", "_");
             String sanitizedTo = sToDate.replace(":", "_").replace("-", "_").replace(" ", "_");
             String isIdlingReportExist = "false";
-            List<IdlingReportViewDto> idlingReport = this.lookupIdlingReportOperation(String.valueOf(vehicleId), from, to, clientId);
+            List<IdlingReportViewDto> idlingReport = this.lookupIdlingReportOperation(String.valueOf(vehicleId), from,
+                    to, clientId);
             sDebug = sDebug + "Size : " + idlingReport.size() + ",";
 
             if (idlingReport == null || idlingReport.isEmpty()) {
@@ -8212,13 +9727,15 @@ public class DispatchServiceImpl implements DispatchService {
                 idlingReport.get(i).setFromDate(sFromDate);
                 idlingReport.get(i).setToDate(sToDate);
                 if (idlingReport.get(i).getClientId() > 0L) {
-                    ClientMaster clientInfo = this.clientMasterRepo.findByClientId((int) idlingReport.get(i).getClientId());
+                    ClientMaster clientInfo = this.clientMasterRepo
+                            .findByClientId((int) idlingReport.get(i).getClientId());
                     idlingReport.get(i).setClientName(clientInfo.getClientName());
                 }
 
                 if (idlingReport.get(i).getVehicleId() != null && !idlingReport.get(i).getVehicleId().equals("")) {
                     try {
-                        VehicleMaster vehcileInfo = this.vehicleMasterRepo.findByVehicleId(Integer.parseInt(idlingReport.get(i).getVehicleId()));
+                        VehicleMaster vehcileInfo = this.vehicleMasterRepo
+                                .findByVehicleId(Integer.parseInt(idlingReport.get(i).getVehicleId()));
                         idlingReport.get(i).setVehicleNo(vehcileInfo.getVehicleNo());
                     } catch (Exception var25) {
                         var25.printStackTrace();
@@ -8230,13 +9747,17 @@ public class DispatchServiceImpl implements DispatchService {
             String sUrl = "";
             String outputPath = "";
             if (reportType.equals("pdf")) {
-                outputPath = "/opt/tomcat/webapps/uploads/idling_reports/" + sanitizedFrom + "_" + sanitizedTo + "_" + vehicleId + ".pdf";
+                outputPath = "/opt/tomcat/webapps/uploads/idling_reports/" + sanitizedFrom + "_" + sanitizedTo + "_"
+                        + vehicleId + ".pdf";
                 this.generateIdlingReportPdf(idlingReport, outputPath);
-                sUrl = "https://admin.gbt-usa.com/uploads/idling_reports/" + sanitizedFrom + "_" + sanitizedTo + "_" + vehicleId + ".pdf";
+                sUrl = "https://admin.gbt-usa.com/uploads/idling_reports/" + sanitizedFrom + "_" + sanitizedTo + "_"
+                        + vehicleId + ".pdf";
             } else {
-                outputPath = "/opt/tomcat/webapps/uploads/idling_reports/" + sanitizedFrom + "_" + sanitizedTo + "_" + vehicleId + ".csv";
+                outputPath = "/opt/tomcat/webapps/uploads/idling_reports/" + sanitizedFrom + "_" + sanitizedTo + "_"
+                        + vehicleId + ".csv";
                 this.generateIdlingReportCsv(idlingReport, outputPath);
-                sUrl = "https://admin.gbt-usa.com/uploads/idling_reports/" + sanitizedFrom + "_" + sanitizedTo + "_" + vehicleId + ".csv";
+                sUrl = "https://admin.gbt-usa.com/uploads/idling_reports/" + sanitizedFrom + "_" + sanitizedTo + "_"
+                        + vehicleId + ".csv";
             }
 
             result.setToken(isIdlingReportExist);
@@ -8380,8 +9901,8 @@ public class DispatchServiceImpl implements DispatchService {
 
     public List<IdlingReportViewDto> lookupIdlingReportOperation(String vehicleId, long from, long to, long clientId) {
         MatchOperation filter = Aggregation.match(
-                Criteria.where("startUtcDateTime").gte(from).lte(to).and("vehicleId").is(vehicleId).and("clientId").is(clientId)
-        );
+                Criteria.where("startUtcDateTime").gte(from).lte(to).and("vehicleId").is(vehicleId).and("clientId")
+                        .is(clientId));
         ProjectionOperation projectStage = Aggregation.project(
                 new String[]{
                     "driverId",
@@ -8403,12 +9924,11 @@ public class DispatchServiceImpl implements DispatchService {
                     "endOdometer",
                     "startEngineHours",
                     "endEngineHours"
-                }
-        )
+                })
                 .andExclude(new String[]{"_id"});
         Aggregation aggregation = Aggregation.newAggregation(
-                new AggregationOperation[]{filter, projectStage, Aggregation.sort(Direction.ASC, new String[]{"startUtcDateTime"})}
-        );
+                new AggregationOperation[]{filter, projectStage,
+                    Aggregation.sort(Direction.ASC, new String[]{"startUtcDateTime"})});
         return this.mongoTemplate.aggregate(aggregation, "idling_report", IdlingReportViewDto.class).getMappedResults();
     }
 
@@ -8432,7 +9952,8 @@ public class DispatchServiceImpl implements DispatchService {
             String sanitizedTo = sToDate.replace(":", "_").replace("-", "_").replace(" ", "_");
             String isIftaReportExist = "false";
             List<IftaReportViewDto> iftaReport = null;
-            List<IFTAReports> iftaData = this.iftaReportsRepo.findAndViewIftaReport(String.valueOf(vehicleId), sFromDate, sToDate);
+            List<IFTAReports> iftaData = this.iftaReportsRepo.findAndViewIftaReport(String.valueOf(vehicleId),
+                    sFromDate, sToDate);
             String companyName = "";
             if (iftaData.size() <= 0) {
                 isIftaReportExist = "false";
@@ -8441,7 +9962,8 @@ public class DispatchServiceImpl implements DispatchService {
 
                 for (int i = 0; i < iftaReport.size(); ++i) {
                     if (iftaReport.get(i).getClientId() > 0L) {
-                        ClientMaster clientInfo = this.clientMasterRepo.findByClientId((int) iftaReport.get(i).getClientId());
+                        ClientMaster clientInfo = this.clientMasterRepo
+                                .findByClientId((int) iftaReport.get(i).getClientId());
                         companyName = clientInfo.getClientName();
                     }
 
@@ -8450,7 +9972,8 @@ public class DispatchServiceImpl implements DispatchService {
                     iftaReport.get(i).setToDate(sToDate);
 
                     try {
-                        Pageable pageableRequest = PageRequest.of(0, 100, Sort.by(new String[]{"utcDateTime"}).ascending());
+                        Pageable pageableRequest = PageRequest.of(0, 100,
+                                Sort.by(new String[]{"utcDateTime"}).ascending());
                         Query query = new Query();
                         query.addCriteria(
                                 Criteria.where("utcDateTime")
@@ -8459,14 +9982,15 @@ public class DispatchServiceImpl implements DispatchService {
                                         .and("VehicleId")
                                         .is(String.valueOf(vehicleId))
                                         .and("stateId")
-                                        .is(iftaReport.get(i).getStateId())
-                        );
+                                        .is(iftaReport.get(i).getStateId()));
                         query.with(pageableRequest);
-                        List<EldLogDataViewDto> eldLogData = this.mongoTemplate.find(query, EldLogDataViewDto.class, "eld_log_data");
+                        List<EldLogDataViewDto> eldLogData = this.mongoTemplate.find(query, EldLogDataViewDto.class,
+                                "eld_log_data");
 
                         for (int e = 0; e < eldLogData.size(); ++e) {
                             if (Double.parseDouble(eldLogData.get(e).getOdometer()) > 0.0) {
-                                iftaReport.get(i).setFirstOdometer((double) Math.round(Double.parseDouble(eldLogData.get(e).getOdometer()) * 0.62137119));
+                                iftaReport.get(i).setFirstOdometer((double) Math
+                                        .round(Double.parseDouble(eldLogData.get(e).getOdometer()) * 0.62137119));
                                 break;
                             }
                         }
@@ -8480,14 +10004,14 @@ public class DispatchServiceImpl implements DispatchService {
                                         .and("VehicleId")
                                         .is(String.valueOf(vehicleId))
                                         .and("stateId")
-                                        .is(iftaReport.get(i).getStateId())
-                        );
+                                        .is(iftaReport.get(i).getStateId()));
                         query.with(var48);
                         eldLogData = this.mongoTemplate.find(query, EldLogDataViewDto.class, "eld_log_data");
 
                         for (int e = 0; e < eldLogData.size(); ++e) {
                             if (Double.parseDouble(eldLogData.get(e).getOdometer()) > 0.0) {
-                                iftaReport.get(i).setLastOdometer((double) Math.round(Double.parseDouble(eldLogData.get(e).getOdometer()) * 0.62137119));
+                                iftaReport.get(i).setLastOdometer((double) Math
+                                        .round(Double.parseDouble(eldLogData.get(e).getOdometer()) * 0.62137119));
                                 break;
                             }
                         }
@@ -8497,7 +10021,8 @@ public class DispatchServiceImpl implements DispatchService {
 
                     if (iftaReport.get(i).getVehicleId() != null && !iftaReport.get(i).getVehicleId().equals("")) {
                         try {
-                            VehicleMaster vehcileInfo = this.vehicleMasterRepo.findByVehicleId(Integer.parseInt(iftaReport.get(i).getVehicleId()));
+                            VehicleMaster vehcileInfo = this.vehicleMasterRepo
+                                    .findByVehicleId(Integer.parseInt(iftaReport.get(i).getVehicleId()));
                             iftaReport.get(i).setVehicleNo(vehcileInfo.getVehicleNo());
                             iftaReport.get(i).setMake(vehcileInfo.getMake());
                             iftaReport.get(i).setVin(vehcileInfo.getVin());
@@ -8521,13 +10046,13 @@ public class DispatchServiceImpl implements DispatchService {
                         long lastTimeStamp = 0L;
                         sDebug = sDebug + " >> state ID : " + iftaReport.get(i).getStateId() + ",";
                         List<IftaReportViewDto> eldLogData = this.lookupAllELDLogDataByVehicleOperation(
-                                String.valueOf(vehicleId), from, to, iftaReport.get(i).getStateId()
-                        );
+                                String.valueOf(vehicleId), from, to, iftaReport.get(i).getStateId());
                         sDebug = sDebug + " >> Size : " + eldLogData.size() + ",";
 
                         for (int e = 0; e < eldLogData.size(); ++e) {
                             if (lastLat != 0.0 && lastLat != eldLogData.get(e).getLattitude()) {
-                                double KM = calculateDistanceInMeters(eldLogData.get(e).getLattitude(), eldLogData.get(e).getLongitude(), lastLat, lastLng);
+                                double KM = calculateDistanceInMeters(eldLogData.get(e).getLattitude(),
+                                        eldLogData.get(e).getLongitude(), lastLat, lastLng);
                                 timeDiff = (eldLogData.get(e).getUtcDateTime() - lastTimeStamp) / 1000L;
                                 if (KM / 1000.0 <= 5.0 && timeDiff <= 600L) {
                                     TOTAL_KM += KM / 1000.0;
@@ -8539,10 +10064,12 @@ public class DispatchServiceImpl implements DispatchService {
                             lastTimeStamp = eldLogData.get(e).getUtcDateTime();
                         }
 
-                        iftaReport.get(i).setGpsKm((double) Math.round(Double.valueOf(String.format("%.2f", TOTAL_KM * 0.62137119))));
+                        iftaReport.get(i).setGpsKm(
+                                (double) Math.round(Double.valueOf(String.format("%.2f", TOTAL_KM * 0.62137119))));
 
                         try {
-                            StateMaster stateInfo = this.stateMasterRepo.findByStateId((int) iftaReport.get(i).getStateId());
+                            StateMaster stateInfo = this.stateMasterRepo
+                                    .findByStateId((int) iftaReport.get(i).getStateId());
                             iftaReport.get(i).setStateName(stateInfo.getStateName());
                             iftaReport.get(i).setStateCode(stateInfo.getStateCode());
                         } catch (Exception var37) {
@@ -8556,7 +10083,8 @@ public class DispatchServiceImpl implements DispatchService {
                     iftaReport.get(i).setFileName(sanitizedFrom + "_" + sanitizedTo + "_" + vehicleId + ".pdf");
                 }
 
-                String outputPath = "/opt/tomcat/webapps/uploads/ifta_reports/" + sanitizedFrom + "_" + sanitizedTo + "_" + vehicleId + ".pdf";
+                String outputPath = "/opt/tomcat/webapps/uploads/ifta_reports/" + sanitizedFrom + "_" + sanitizedTo
+                        + "_" + vehicleId + ".pdf";
                 this.generateFullStyledPdf(iftaReport, outputPath);
                 new IFTAReports();
 
@@ -8626,7 +10154,8 @@ public class DispatchServiceImpl implements DispatchService {
             String sanitizedTo = sToDate.replace(":", "_").replace("-", "_").replace(" ", "_");
             String isIftaReportExist = "false";
             List<IftaReportViewDto> iftaReport = null;
-            List<IFTAReports> iftaData = this.iftaReportsRepo.findAndViewIftaReport(String.valueOf(vehicleId), sFromDate, sToDate);
+            List<IFTAReports> iftaData = this.iftaReportsRepo.findAndViewIftaReport(String.valueOf(vehicleId),
+                    sFromDate, sToDate);
             String companyName = "";
             long clientId = 0L;
             if (iftaData.size() <= 0) {
@@ -8709,7 +10238,8 @@ public class DispatchServiceImpl implements DispatchService {
                     } else {
                         sDebug = sDebug + "7,";
                         if (lastLat != 0.0 && lastLat != current.getLattitude()) {
-                            double KM = calculateDistanceInMeters(current.getLattitude(), current.getLongitude(), lastLat, lastLng);
+                            double KM = calculateDistanceInMeters(current.getLattitude(), current.getLongitude(),
+                                    lastLat, lastLng);
                             timeDiff = (current.getUtcDateTime() - lastTimeStamp) / 1000L;
                             if (KM / 1000.0 <= 5.0 && timeDiff <= 600L) {
                                 TOTAL_KM += KM / 1000.0;
@@ -8811,9 +10341,11 @@ public class DispatchServiceImpl implements DispatchService {
 
                 sDebug = sDebug + "12,";
                 List<IftaReportViewDto> finalList = new ArrayList<>(mergedMap.values());
-                String outputPath = "/opt/tomcat/webapps/uploads/ifta_reports/" + sanitizedFrom + "_" + sanitizedTo + "_" + vehicleId + ".pdf";
+                String outputPath = "/opt/tomcat/webapps/uploads/ifta_reports/" + sanitizedFrom + "_" + sanitizedTo
+                        + "_" + vehicleId + ".pdf";
                 this.generateFullStyledNewPdf(finalList, outputPath);
-                String csvPath = "/opt/tomcat/webapps/uploads/ifta_reports/" + sanitizedFrom + "_" + sanitizedTo + "_" + vehicleId + ".csv";
+                String csvPath = "/opt/tomcat/webapps/uploads/ifta_reports/" + sanitizedFrom + "_" + sanitizedTo + "_"
+                        + vehicleId + ".csv";
                 this.generateIftaCsv(finalList, csvPath);
                 sDebug = sDebug + "13,";
                 new IFTAReports();
@@ -8874,7 +10406,8 @@ public class DispatchServiceImpl implements DispatchService {
         writer.append("Carrier,").append(report.get(0).getCarrierName()).append("\n");
         String period = report.get(0).getFromDate() + " To " + report.get(0).getToDate();
         writer.append("Period,").append(period).append("\n");
-        LocalDateTime dateTime = Instant.ofEpochMilli(report.get(0).getCurrentTimestamp()).atZone(ZoneId.systemDefault()).toLocalDateTime();
+        LocalDateTime dateTime = Instant.ofEpochMilli(report.get(0).getCurrentTimestamp())
+                .atZone(ZoneId.systemDefault()).toLocalDateTime();
         String formatted = dateTime.format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss"));
         writer.append("Report Generated,").append(formatted).append("\n");
         writer.append("\n");
@@ -8922,7 +10455,8 @@ public class DispatchServiceImpl implements DispatchService {
         document.add(new Paragraph("Summary of total mileage by state for all equipment", bodyFont));
         document.add(new Paragraph(" "));
         String period = report.get(0).getFromDate() + " To " + report.get(0).getToDate();
-        LocalDateTime dateTime = Instant.ofEpochMilli(report.get(0).getCurrentTimestamp()).atZone(ZoneId.systemDefault()).toLocalDateTime();
+        LocalDateTime dateTime = Instant.ofEpochMilli(report.get(0).getCurrentTimestamp())
+                .atZone(ZoneId.systemDefault()).toLocalDateTime();
         String formatted = dateTime.format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss"));
         document.add(new Paragraph("Carrier: " + report.get(0).getCarrierName(), bodyFont));
         document.add(new Paragraph("Period: " + period, bodyFont));
@@ -8970,8 +10504,10 @@ public class DispatchServiceImpl implements DispatchService {
         });
 
         for (IftaReportViewDto state : report) {
-            PdfPCell stateCell = new PdfPCell(new Phrase(state.getStateName() + " (" + state.getStateCode() + ")", bodyFont));
-            PdfPCell odoCell = new PdfPCell(new Phrase(String.valueOf(state.getLastOdometer() - state.getFirstOdometer()), bodyFont));
+            PdfPCell stateCell = new PdfPCell(
+                    new Phrase(state.getStateName() + " (" + state.getStateCode() + ")", bodyFont));
+            PdfPCell odoCell = new PdfPCell(
+                    new Phrase(String.valueOf(state.getLastOdometer() - state.getFirstOdometer()), bodyFont));
             PdfPCell gpsCell = new PdfPCell(new Phrase(String.valueOf(state.getGpsKm()), bodyFont));
             stateCell.setPadding(4.0F);
             odoCell.setPadding(4.0F);
@@ -9009,7 +10545,8 @@ public class DispatchServiceImpl implements DispatchService {
         document.add(new Paragraph("Summary of total mileage by state for all equipment", bodyFont));
         document.add(new Paragraph(" "));
         String period = report.get(0).getFromDate() + " To " + report.get(0).getToDate();
-        LocalDateTime dateTime = Instant.ofEpochMilli(report.get(0).getCurrentTimestamp()).atZone(ZoneId.systemDefault()).toLocalDateTime();
+        LocalDateTime dateTime = Instant.ofEpochMilli(report.get(0).getCurrentTimestamp())
+                .atZone(ZoneId.systemDefault()).toLocalDateTime();
         String formatted = dateTime.format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss"));
         document.add(new Paragraph("Carrier: " + report.get(0).getCarrierName(), bodyFont));
         document.add(new Paragraph("Period: " + period, bodyFont));
@@ -9057,7 +10594,8 @@ public class DispatchServiceImpl implements DispatchService {
         });
 
         for (IftaReportViewDto state : report) {
-            PdfPCell stateCell = new PdfPCell(new Phrase(state.getStateName() + " (" + state.getStateCode() + ")", bodyFont));
+            PdfPCell stateCell = new PdfPCell(
+                    new Phrase(state.getStateName() + " (" + state.getStateCode() + ")", bodyFont));
             PdfPCell odoCell = new PdfPCell(new Phrase(String.valueOf(state.getTotalOdometer()), bodyFont));
             PdfPCell gpsCell = new PdfPCell(new Phrase(String.valueOf(state.getGpsKm()), bodyFont));
             stateCell.setPadding(4.0F);
@@ -9082,7 +10620,8 @@ public class DispatchServiceImpl implements DispatchService {
             double radLat2 = Math.toRadians(lat2);
             double theta = lon1 - lon2;
             double radTheta = Math.toRadians(theta);
-            double dist = Math.sin(radLat1) * Math.sin(radLat2) + Math.cos(radLat1) * Math.cos(radLat2) * Math.cos(radTheta);
+            double dist = Math.sin(radLat1) * Math.sin(radLat2)
+                    + Math.cos(radLat1) * Math.cos(radLat2) * Math.cos(radTheta);
             if (dist > 1.0) {
                 dist = 1.0;
             }
@@ -9095,24 +10634,25 @@ public class DispatchServiceImpl implements DispatchService {
         }
     }
 
-    public List<IftaReportViewDto> lookupAllELDLogDataByVehicleOperation(String vehicleId, long from, long to, long stateId) {
+    public List<IftaReportViewDto> lookupAllELDLogDataByVehicleOperation(String vehicleId, long from, long to,
+            long stateId) {
         MatchOperation filter = Aggregation.match(
-                Criteria.where("utcDateTime").gte(from).lte(to).and("VehicleId").is(vehicleId).and("stateId").is(stateId).and("Speed").gt(2)
-        );
+                Criteria.where("utcDateTime").gte(from).lte(to).and("VehicleId").is(vehicleId).and("stateId")
+                        .is(stateId).and("Speed").gt(2));
         ProjectionOperation projectStage = Aggregation.project(
-                new String[]{"Odometer", "VehicleId", "DriverId", "stateId", "Lattitude", "Longitude", "utcDateTime"}
-        )
+                new String[]{"Odometer", "VehicleId", "DriverId", "stateId", "Lattitude", "Longitude",
+                    "utcDateTime"})
                 .andExclude(new String[]{"_id"});
         Aggregation aggregation = Aggregation.newAggregation(
-                new AggregationOperation[]{filter, projectStage, Aggregation.sort(Direction.ASC, new String[]{"utcDateTime"})}
-        );
+                new AggregationOperation[]{filter, projectStage,
+                    Aggregation.sort(Direction.ASC, new String[]{"utcDateTime"})});
         return this.mongoTemplate.aggregate(aggregation, "eld_log_data", IftaReportViewDto.class).getMappedResults();
     }
 
     public List<IftaReportViewDto> lookupIftaReportOperation(String vehicleId, long from, long to) {
         MatchOperation filter = Aggregation.match(
-                Criteria.where("utcDateTime").gte(from).lte(to).and("VehicleId").is(vehicleId).and("stateId").gt(0).and("Speed").gt(2)
-        );
+                Criteria.where("utcDateTime").gte(from).lte(to).and("VehicleId").is(vehicleId).and("stateId").gt(0)
+                        .and("Speed").gt(2));
         GroupOperation group1 = Aggregation.group(new String[]{"stateId"})
                 .count()
                 .as("totalCount")
@@ -9130,32 +10670,35 @@ public class DispatchServiceImpl implements DispatchService {
                 .as("clientId")
                 .last("stateId")
                 .as("stateId");
-        ProjectionOperation projectStage = Aggregation.project(new String[]{"Odometer", "VehicleId", "DriverId", "stateId", "utcDateTime", "clientId"})
+        ProjectionOperation projectStage = Aggregation
+                .project(new String[]{"Odometer", "VehicleId", "DriverId", "stateId", "utcDateTime", "clientId"})
                 .andExclude(new String[]{"_id"});
         Aggregation aggregation = Aggregation.newAggregation(
                 new AggregationOperation[]{
-                    filter, projectStage, group1, Aggregation.sort(Direction.ASC, new String[]{"stateId"}).and(Direction.ASC, new String[]{"utcDateTime"})
-                }
-        );
+                    filter, projectStage, group1,
+                    Aggregation.sort(Direction.ASC, new String[]{"stateId"}).and(Direction.ASC,
+                            new String[]{"utcDateTime"})
+                });
         return this.mongoTemplate.aggregate(aggregation, "eld_log_data", IftaReportViewDto.class).getMappedResults();
     }
 
     public List<IftaReportViewDto> lookupIftaReportNewOperation(String vehicleId, long from, long to) {
         MatchOperation filter = Aggregation.match(
-                Criteria.where("utcDateTime").gte(from).lte(to).and("VehicleId").is(vehicleId).and("stateId").gt(0).and("Speed").gt(2)
-        );
+                Criteria.where("utcDateTime").gte(from).lte(to).and("VehicleId").is(vehicleId).and("stateId").gt(0)
+                        .and("Speed").gt(2));
         ProjectionOperation projectStage = Aggregation.project(
-                new String[]{"Odometer", "VehicleId", "DriverId", "stateId", "utcDateTime", "clientId", "Lattitude", "Longitude"}
-        )
+                new String[]{"Odometer", "VehicleId", "DriverId", "stateId", "utcDateTime", "clientId", "Lattitude",
+                    "Longitude"})
                 .andExclude(new String[]{"_id"});
         Aggregation aggregation = Aggregation.newAggregation(
-                new AggregationOperation[]{filter, projectStage, Aggregation.sort(Direction.ASC, new String[]{"utcDateTime"})}
-        );
+                new AggregationOperation[]{filter, projectStage,
+                    Aggregation.sort(Direction.ASC, new String[]{"utcDateTime"})});
         return this.mongoTemplate.aggregate(aggregation, "eld_log_data", IftaReportViewDto.class).getMappedResults();
     }
 
     @Override
-    public ResultWrapper<List<IftaReportViewDto>> ViewIftaGeneratedSummaryReport(DriveringStatusCRUDDto driveringStatusCRUDDto) {
+    public ResultWrapper<List<IftaReportViewDto>> ViewIftaGeneratedSummaryReport(
+            DriveringStatusCRUDDto driveringStatusCRUDDto) {
         ResultWrapper<List<IftaReportViewDto>> result = new ResultWrapper<>();
         String sDebug = "";
 
@@ -9204,12 +10747,12 @@ public class DispatchServiceImpl implements DispatchService {
                 .last("vehicleNo")
                 .as("vehicleNo");
         ProjectionOperation projectStage = Aggregation.project(
-                new String[]{"fromDate", "toDate", "vehicleId", "driverId", "make", "vin", "currentTimestamp", "vehicleNo", "fileName"}
-        )
+                new String[]{"fromDate", "toDate", "vehicleId", "driverId", "make", "vin", "currentTimestamp",
+                    "vehicleNo", "fileName"})
                 .andExclude(new String[]{"_id"});
         Aggregation aggregation = Aggregation.newAggregation(
-                new AggregationOperation[]{filter, projectStage, group1, Aggregation.sort(Direction.DESC, new String[]{"currentTimestamp"})}
-        );
+                new AggregationOperation[]{filter, projectStage, group1,
+                    Aggregation.sort(Direction.DESC, new String[]{"currentTimestamp"})});
         return this.mongoTemplate.aggregate(aggregation, "ifta_reports", IftaReportViewDto.class).getMappedResults();
     }
 
@@ -9230,7 +10773,8 @@ public class DispatchServiceImpl implements DispatchService {
             long from = ldtFromDate.atZone(ZoneId.systemDefault()).toInstant().toEpochMilli();
             LocalDateTime ldtToDate = LocalDateTime.parse(sToDate, formatter);
             long to = ldtToDate.atZone(ZoneId.systemDefault()).toInstant().toEpochMilli();
-            List<LiveDataLogViewDto> eldLogData = this.lookupELDLogHistoryOperation(String.valueOf(vehicleId), from, to);
+            List<LiveDataLogViewDto> eldLogData = this.lookupELDLogHistoryOperation(String.valueOf(vehicleId), from,
+                    to);
             long iCount = 0L;
             long lastStateId = 0L;
             long startUtcDateTime = 0L;
@@ -9297,7 +10841,8 @@ public class DispatchServiceImpl implements DispatchService {
                     }
 
                     iftaSummary.setFirstOdometer(firstOdometer);
-                    double odometer = (double) Math.round(Double.parseDouble(eldLogData.get(i).getOdometer()) * 0.62137119);
+                    double odometer = (double) Math
+                            .round(Double.parseDouble(eldLogData.get(i).getOdometer()) * 0.62137119);
                     iftaSummary.setLastOdometer(odometer);
                     if (odometer >= firstOdometer) {
                         iftaSummary.setOdometerMileage(odometer - firstOdometer);
@@ -9318,11 +10863,13 @@ public class DispatchServiceImpl implements DispatchService {
                         startUtcDateTime = eldLogData.get(i).getUtcDateTime();
                         startPlaceAddress = eldLogData.get(i).getPlaceAddress();
                         startStateId = eldLogData.get(i).getStateId();
-                        firstOdometer = (double) Math.round(Double.parseDouble(eldLogData.get(i).getOdometer()) * 0.62137119);
+                        firstOdometer = (double) Math
+                                .round(Double.parseDouble(eldLogData.get(i).getOdometer()) * 0.62137119);
                     }
 
                     if (lastLat != 0.0 && lastLat != eldLogData.get(i).getLattitude()) {
-                        double KM = calculateDistanceInMeters(eldLogData.get(i).getLattitude(), eldLogData.get(i).getLongitude(), lastLat, lastLng);
+                        double KM = calculateDistanceInMeters(eldLogData.get(i).getLattitude(),
+                                eldLogData.get(i).getLongitude(), lastLat, lastLng);
                         long timeDiff = (eldLogData.get(i).getUtcDateTime() - lastTimeStamp) / 1000L;
                         if (KM / 1000.0 <= 5.0 && timeDiff <= 600L) {
                             totalKm += KM / 1000.0;
@@ -9432,7 +10979,8 @@ public class DispatchServiceImpl implements DispatchService {
                         Files.createDirectories(this.fileStorageLocation);
                     }
                 } catch (Exception var20) {
-                    throw new Exception("Could not create the directory where the uploaded files will be stored.", var20);
+                    throw new Exception("Could not create the directory where the uploaded files will be stored.",
+                            var20);
                 }
 
                 int iCount = 0;
@@ -9471,7 +11019,8 @@ public class DispatchServiceImpl implements DispatchService {
                 }
 
                 dvirData = (DVIRData) this.dvirDataRepo.save(dvirData);
-                dvirDataViewDto = this.dvirDataRepo.findAndViewDvirDataByDriverId(dvirData.getDriverId(), dvirData.getLDateTime());
+                dvirDataViewDto = this.dvirDataRepo.findAndViewDvirDataByDriverId(dvirData.getDriverId(),
+                        dvirData.getLDateTime());
                 result.setResult(dvirDataViewDto);
                 result.setToken(tokenValid);
                 result.setStatus(Result.SUCCESS);
@@ -9546,7 +11095,8 @@ public class DispatchServiceImpl implements DispatchService {
     }
 
     @Override
-    public ResultWrapper<List<AddDriveringStatusResponseDto>> AddDVIRDataOffline(AddDvirDataDto addDvirDataDto, String tokenValid) {
+    public ResultWrapper<List<AddDriveringStatusResponseDto>> AddDVIRDataOffline(AddDvirDataDto addDvirDataDto,
+            String tokenValid) {
         ResultWrapper<List<AddDriveringStatusResponseDto>> result = new ResultWrapper<>();
         String sDebug = ">> ";
 
@@ -9570,7 +11120,8 @@ public class DispatchServiceImpl implements DispatchService {
                 dvirData.setReceivedTimestamp(instant.toEpochMilli());
                 dvirData = (DVIRData) this.dvirDataRepo.save(dvirData);
                 sDebug = sDebug + "5,";
-                DVIRDataCRUDDto dvirDataVewDto = this.dvirDataRepo.findAndViewDvirDataByDriverId(dvirData.getDriverId(), dvirData.getLDateTime());
+                DVIRDataCRUDDto dvirDataVewDto = this.dvirDataRepo.findAndViewDvirDataByDriverId(dvirData.getDriverId(),
+                        dvirData.getLDateTime());
                 String objId = dvirDataVewDto.get_id();
                 sDebug = sDebug + "6,";
                 AddDriveringStatusResponseDto addDvirStatus = new AddDriveringStatusResponseDto();
@@ -9592,7 +11143,8 @@ public class DispatchServiceImpl implements DispatchService {
     }
 
     @Override
-    public ResultWrapper<List<AddDriveringStatusResponseDto>> AddDefectDataOffline(List<MultipartFile> file, AddDvirDataDto addDvirDataDto, String tokenValid) {
+    public ResultWrapper<List<AddDriveringStatusResponseDto>> AddDefectDataOffline(List<MultipartFile> file,
+            AddDvirDataDto addDvirDataDto, String tokenValid) {
         ResultWrapper<List<AddDriveringStatusResponseDto>> result = new ResultWrapper<>();
         String sDebug = ">> ";
 
@@ -9641,7 +11193,8 @@ public class DispatchServiceImpl implements DispatchService {
                             fileExtension = "";
                         }
 
-                        fileName = "defect_" + defectDetails.getDvirId() + "_" + defectDetails.getDriverId() + "_" + defectDetails.getUtcDateTime() + fileExtension;
+                        fileName = "defect_" + defectDetails.getDvirId() + "_" + defectDetails.getDriverId() + "_"
+                                + defectDetails.getUtcDateTime() + fileExtension;
                         if (!mf.getOriginalFilename().isEmpty() && !mf.getOriginalFilename().equals("")) {
                             Path targetLocation = this.fileStorageLocation.resolve(fileName);
                             Files.copy(mf.getInputStream(), targetLocation, StandardCopyOption.REPLACE_EXISTING);
@@ -9677,7 +11230,8 @@ public class DispatchServiceImpl implements DispatchService {
     }
 
     @Override
-    public ResultWrapper<List<AddDriveringStatusResponseDto>> AddDefectData(MultipartFile mf, DefectDetails defectDetails, String tokenValid) {
+    public ResultWrapper<List<AddDriveringStatusResponseDto>> AddDefectData(MultipartFile mf,
+            DefectDetails defectDetails, String tokenValid) {
         ResultWrapper<List<AddDriveringStatusResponseDto>> result = new ResultWrapper<>();
         String sDebug = ">> ";
 
@@ -9719,7 +11273,8 @@ public class DispatchServiceImpl implements DispatchService {
                     fileExtension = "";
                 }
 
-                fileName = "defect_" + defectDetails.getDvirId() + "_" + defectDetails.getDriverId() + "_" + defectDetails.getUtcDateTime() + fileExtension;
+                fileName = "defect_" + defectDetails.getDvirId() + "_" + defectDetails.getDriverId() + "_"
+                        + defectDetails.getUtcDateTime() + fileExtension;
                 if (!mf.getOriginalFilename().isEmpty() && !mf.getOriginalFilename().equals("")) {
                     Path targetLocation = this.fileStorageLocation.resolve(fileName);
                     Files.copy(mf.getInputStream(), targetLocation, StandardCopyOption.REPLACE_EXISTING);
@@ -9778,8 +11333,10 @@ public class DispatchServiceImpl implements DispatchService {
                     sDebug = sDebug + " 1,";
 
                     try {
-                        dvirDataViewDto.get(i).setOdometer(Double.valueOf(String.format("%.2f", dvirDataViewDto.get(i).getOdometer())));
-                        dvirDataViewDto.get(i).setEngineHour(df.format(Double.parseDouble(dvirDataViewDto.get(i).getEngineHour())));
+                        dvirDataViewDto.get(i).setOdometer(
+                                Double.valueOf(String.format("%.2f", dvirDataViewDto.get(i).getOdometer())));
+                        dvirDataViewDto.get(i)
+                                .setEngineHour(df.format(Double.parseDouble(dvirDataViewDto.get(i).getEngineHour())));
                     } catch (Exception var40) {
                         var40.printStackTrace();
                     }
@@ -9794,7 +11351,8 @@ public class DispatchServiceImpl implements DispatchService {
                     sDebug = sDebug + " 4,";
 
                     try {
-                        MainTerminalMaster mainTerminal = this.mainTerminalMasterRepo.findByMainTerminalId((int) empInfo.getMainTerminalId());
+                        MainTerminalMaster mainTerminal = this.mainTerminalMasterRepo
+                                .findByMainTerminalId((int) empInfo.getMainTerminalId());
                         if (mainTerminal.getStateId() > 0L) {
                             StateMaster stateInfo = this.stateMasterRepo.findByStateId((int) mainTerminal.getStateId());
                             dvirDataViewDto.get(i).setTimezoneName(stateInfo.getTimeZone());
@@ -9803,7 +11361,8 @@ public class DispatchServiceImpl implements DispatchService {
 
                         sDebug = sDebug + " 5,";
                         if (dvirDataViewDto.get(i).getVehicleId() > 0L) {
-                            VehicleMaster vehcileInfo = this.vehicleMasterRepo.findByVehicleId((int) dvirDataViewDto.get(i).getVehicleId());
+                            VehicleMaster vehcileInfo = this.vehicleMasterRepo
+                                    .findByVehicleId((int) dvirDataViewDto.get(i).getVehicleId());
                             dvirDataViewDto.get(i).setVehicleNo(vehcileInfo.getVehicleNo());
                             dvirDataViewDto.get(i).setVin(vehcileInfo.getVin());
                         }
@@ -9818,13 +11377,15 @@ public class DispatchServiceImpl implements DispatchService {
                 if (email != null && !email.trim().isEmpty()) {
                     sDebug = sDebug + " 8,";
 
-                    for (Map<String, Object> valueMap : this.dispatchServiceImpl.callReportCreateMethods(driverId, from, to, "dvir_log", driverName)) {
+                    for (Map<String, Object> valueMap : this.dispatchServiceImpl.callReportCreateMethods(driverId, from,
+                            to, "dvir_log", driverName)) {
                         System.out.println(">>>SendEmail: [" + valueMap.size() + "]" + LocalDateTime.now());
                         if (valueMap.size() > 0) {
                             sDebug = sDebug + " 9,";
                             ByteArrayOutputStream outputStream = (ByteArrayOutputStream) valueMap.get("outputStream");
                             String fileName = valueMap.get("fileName").toString();
-                            System.out.println(">>ReportName-" + fileName + "----------------------" + LocalDateTime.now());
+                            System.out.println(
+                                    ">>ReportName-" + fileName + "----------------------" + LocalDateTime.now());
                             String subject = valueMap.get("subject").toString();
                             String text = valueMap.get("text").toString();
                             sDebug = sDebug + " 10,";
@@ -9867,12 +11428,14 @@ public class DispatchServiceImpl implements DispatchService {
                 for (int i = 0; i < dvirDataViewDto.size(); ++i) {
                     String setImagePath1 = url.concat(dvirDataViewDto.get(i).getDriverSignFile());
                     dvirDataViewDto.get(i).setDriverSignFile(setImagePath1);
-                    EmployeeMaster empInfo = this.employeeMasterRepo.findByEmployeeId((int) dvirDataViewDto.get(i).getDriverId());
+                    EmployeeMaster empInfo = this.employeeMasterRepo
+                            .findByEmployeeId((int) dvirDataViewDto.get(i).getDriverId());
                     driverName = empInfo.getFirstName() + " " + empInfo.getLastName();
                     dvirDataViewDto.get(i).setDriverName(driverName);
 
                     try {
-                        MainTerminalMaster mainTerminal = this.mainTerminalMasterRepo.findByMainTerminalId((int) empInfo.getMainTerminalId());
+                        MainTerminalMaster mainTerminal = this.mainTerminalMasterRepo
+                                .findByMainTerminalId((int) empInfo.getMainTerminalId());
                         if (mainTerminal.getStateId() > 0L) {
                             StateMaster stateInfo = this.stateMasterRepo.findByStateId((int) mainTerminal.getStateId());
                             dvirDataViewDto.get(i).setTimezoneName(stateInfo.getTimeZone());
@@ -9880,7 +11443,8 @@ public class DispatchServiceImpl implements DispatchService {
                         }
 
                         if (dvirDataViewDto.get(i).getVehicleId() > 0L) {
-                            VehicleMaster vehcileInfo = this.vehicleMasterRepo.findByVehicleId((int) dvirDataViewDto.get(i).getVehicleId());
+                            VehicleMaster vehcileInfo = this.vehicleMasterRepo
+                                    .findByVehicleId((int) dvirDataViewDto.get(i).getVehicleId());
                             dvirDataViewDto.get(i).setVehicleNo(vehcileInfo.getVehicleNo());
                             dvirDataViewDto.get(i).setVin(vehcileInfo.getVin());
                         }
@@ -9890,12 +11454,14 @@ public class DispatchServiceImpl implements DispatchService {
                 }
 
                 if (email != null && !email.trim().isEmpty()) {
-                    for (Map<String, Object> valueMap : this.dispatchServiceImpl.callReportCreateMethods(driverId, from, to, "dvir_log", driverName)) {
+                    for (Map<String, Object> valueMap : this.dispatchServiceImpl.callReportCreateMethods(driverId, from,
+                            to, "dvir_log", driverName)) {
                         System.out.println(">>>SendEmail: [" + valueMap.size() + "]" + LocalDateTime.now());
                         if (valueMap.size() > 0) {
                             ByteArrayOutputStream outputStream = (ByteArrayOutputStream) valueMap.get("outputStream");
                             String fileName = valueMap.get("fileName").toString();
-                            System.out.println(">>ReportName-" + fileName + "----------------------" + LocalDateTime.now());
+                            System.out.println(
+                                    ">>ReportName-" + fileName + "----------------------" + LocalDateTime.now());
                             String subject = valueMap.get("subject").toString();
                             String text = valueMap.get("text").toString();
                             MimeBodyPart textBodyPart = new MimeBodyPart();
@@ -9961,7 +11527,8 @@ public class DispatchServiceImpl implements DispatchService {
                 EmployeeMaster empInfo = this.employeeMasterRepo.findByEmployeeId((int) driverId);
                 driverName = empInfo.getFirstName() + " " + empInfo.getLastName();
 
-                for (Map<String, Object> valueMap : this.dispatchServiceImpl.callReportCreateMethods(driverId, from, to, "dvir_log", driverName)) {
+                for (Map<String, Object> valueMap : this.dispatchServiceImpl.callReportCreateMethods(driverId, from, to,
+                        "dvir_log", driverName)) {
                     if (valueMap.size() > 0) {
                         ByteArrayOutputStream outputStream = (ByteArrayOutputStream) valueMap.get("outputStream");
                         fileName = valueMap.get("fileName").toString();
@@ -10021,7 +11588,8 @@ public class DispatchServiceImpl implements DispatchService {
                 EmployeeMaster empInfo = this.employeeMasterRepo.findByEmployeeId((int) driverId);
                 driverName = empInfo.getFirstName() + " " + empInfo.getLastName();
 
-                for (Map<String, Object> valueMap : this.dispatchServiceImpl.callReportCreateMethods(driverId, from, to, "dvir_log", driverName)) {
+                for (Map<String, Object> valueMap : this.dispatchServiceImpl.callReportCreateMethods(driverId, from, to,
+                        "dvir_log", driverName)) {
                     if (valueMap.size() > 0) {
                         ByteArrayOutputStream outputStream = (ByteArrayOutputStream) valueMap.get("outputStream");
                         fileName = valueMap.get("fileName").toString();
@@ -10090,7 +11658,8 @@ public class DispatchServiceImpl implements DispatchService {
                 this.SaveLog("byte size : " + pdfBytes.length + ",\n");
                 reader = new PdfReader(pdfBytes);
                 this.SaveLog("1,");
-                PdfEncryptor.encrypt(reader, baos, userPassword.getBytes("UTF-8"), ownerPassword.getBytes("UTF-8"), 2052, true);
+                PdfEncryptor.encrypt(reader, baos, userPassword.getBytes("UTF-8"), ownerPassword.getBytes("UTF-8"),
+                        2052, true);
                 this.SaveLog("2,");
                 var6 = baos.toByteArray();
             } finally {
@@ -10192,13 +11761,15 @@ public class DispatchServiceImpl implements DispatchService {
                 alertsLogViewDtoData = this.alertsLogRepo.findAndViewAllUnreadAlerts(clientId, 0);
 
                 for (int i = 0; i < alertsLogViewDtoData.size(); ++i) {
-                    EmployeeMaster empInfo = this.employeeMasterRepo.findByEmployeeId((int) alertsLogViewDtoData.get(i).getDriverId());
+                    EmployeeMaster empInfo = this.employeeMasterRepo
+                            .findByEmployeeId((int) alertsLogViewDtoData.get(i).getDriverId());
                     driverName = empInfo.getFirstName() + " " + empInfo.getLastName();
                     alertsLogViewDtoData.get(i).setDriverName(driverName);
 
                     try {
                         if (alertsLogViewDtoData.get(i).getVehicleId() > 0L) {
-                            VehicleMaster vehcileInfo = this.vehicleMasterRepo.findByVehicleId((int) alertsLogViewDtoData.get(i).getVehicleId());
+                            VehicleMaster vehcileInfo = this.vehicleMasterRepo
+                                    .findByVehicleId((int) alertsLogViewDtoData.get(i).getVehicleId());
                             alertsLogViewDtoData.get(i).setVehicleNo(vehcileInfo.getVehicleNo());
                         }
                     } catch (Exception var10) {
@@ -10232,7 +11803,8 @@ public class DispatchServiceImpl implements DispatchService {
             String driverName = "";
             if (!readByEmail.equals("")) {
                 Query query = new Query();
-                query.addCriteria(Criteria.where("driverId").is(alertsLogViewDto.getDriverId()).and("startUtcDateTime").is(alertsLogViewDto.getStartUtcDateTime()));
+                query.addCriteria(Criteria.where("driverId").is(alertsLogViewDto.getDriverId()).and("startUtcDateTime")
+                        .is(alertsLogViewDto.getStartUtcDateTime()));
                 Update update = new Update();
                 update.set("readByEmail", readByEmail);
                 update.set("isRead", 1);
@@ -10265,7 +11837,8 @@ public class DispatchServiceImpl implements DispatchService {
             new Query();
             new Update();
             if (clientId > 0L) {
-                List<AlertsLogViewDto> alertsLogViewDtoData = this.alertsLogRepo.findAndViewAllUnreadAlerts(clientId, 0);
+                List<AlertsLogViewDto> alertsLogViewDtoData = this.alertsLogRepo.findAndViewAllUnreadAlerts(clientId,
+                        0);
 
                 for (int i = 0; i < alertsLogViewDtoData.size(); ++i) {
                     Query query = new Query();
@@ -10273,8 +11846,7 @@ public class DispatchServiceImpl implements DispatchService {
                             Criteria.where("driverId")
                                     .is(alertsLogViewDtoData.get(i).getDriverId())
                                     .and("startUtcDateTime")
-                                    .is(alertsLogViewDtoData.get(i).getStartUtcDateTime())
-                    );
+                                    .is(alertsLogViewDtoData.get(i).getStartUtcDateTime()));
                     Update update = new Update();
                     update.set("readByEmail", readByEmail);
                     update.set("isRead", 1);
@@ -10314,20 +11886,24 @@ public class DispatchServiceImpl implements DispatchService {
 
                 for (int i = 0; i < dvirDataViewDto.size(); ++i) {
                     try {
-                        dvirDataViewDto.get(i).setOdometer(Double.valueOf(String.format("%.2f", dvirDataViewDto.get(i).getOdometer())));
-                        dvirDataViewDto.get(i).setEngineHour(df.format(Double.parseDouble(dvirDataViewDto.get(i).getEngineHour())));
+                        dvirDataViewDto.get(i).setOdometer(
+                                Double.valueOf(String.format("%.2f", dvirDataViewDto.get(i).getOdometer())));
+                        dvirDataViewDto.get(i)
+                                .setEngineHour(df.format(Double.parseDouble(dvirDataViewDto.get(i).getEngineHour())));
                     } catch (Exception var19) {
                         var19.printStackTrace();
                     }
 
                     String setImagePath1 = url.concat(dvirDataViewDto.get(i).getDriverSignFile());
                     dvirDataViewDto.get(i).setDriverSignFile(setImagePath1);
-                    EmployeeMaster empInfo = this.employeeMasterRepo.findByEmployeeId((int) dvirDataViewDto.get(i).getDriverId());
+                    EmployeeMaster empInfo = this.employeeMasterRepo
+                            .findByEmployeeId((int) dvirDataViewDto.get(i).getDriverId());
                     driverName = empInfo.getFirstName() + " " + empInfo.getLastName();
                     dvirDataViewDto.get(i).setDriverName(driverName);
                     ArrayList<String> sTruckDefectImage = new ArrayList<>();
                     ArrayList<String> sTrailerDefectImage = new ArrayList<>();
-                    List<DefectDetailCRUDDto> defectDetailCRUDDto = this.defectDetailsRepo.findAndViewDefectDataByDvirId(dvirDataViewDto.get(i).get_id());
+                    List<DefectDetailCRUDDto> defectDetailCRUDDto = this.defectDetailsRepo
+                            .findAndViewDefectDataByDvirId(dvirDataViewDto.get(i).get_id());
 
                     for (int d = 0; d < defectDetailCRUDDto.size(); ++d) {
                         if (defectDetailCRUDDto.get(d).getDefectType().equals("Truck")) {
@@ -10343,7 +11919,8 @@ public class DispatchServiceImpl implements DispatchService {
                     dvirDataViewDto.get(i).setTrailerDefectImage(sTrailerDefectImage);
 
                     try {
-                        MainTerminalMaster mainTerminal = this.mainTerminalMasterRepo.findByMainTerminalId((int) empInfo.getMainTerminalId());
+                        MainTerminalMaster mainTerminal = this.mainTerminalMasterRepo
+                                .findByMainTerminalId((int) empInfo.getMainTerminalId());
                         if (mainTerminal.getStateId() > 0L) {
                             StateMaster stateInfo = this.stateMasterRepo.findByStateId((int) mainTerminal.getStateId());
                             dvirDataViewDto.get(i).setTimezoneName(stateInfo.getTimeZone());
@@ -10351,7 +11928,8 @@ public class DispatchServiceImpl implements DispatchService {
                         }
 
                         if (dvirDataViewDto.get(i).getVehicleId() > 0L) {
-                            VehicleMaster vehcileInfo = this.vehicleMasterRepo.findByVehicleId((int) dvirDataViewDto.get(i).getVehicleId());
+                            VehicleMaster vehcileInfo = this.vehicleMasterRepo
+                                    .findByVehicleId((int) dvirDataViewDto.get(i).getVehicleId());
                             dvirDataViewDto.get(i).setVehicleNo(vehcileInfo.getVehicleNo());
                             dvirDataViewDto.get(i).setVin(vehcileInfo.getVin());
                         }
@@ -10385,7 +11963,8 @@ public class DispatchServiceImpl implements DispatchService {
             long driverId = dvirDataCRUDDto.getDriverId();
             String defectUrl = "http://admin.gbt-usa.com/uploads/defects/";
             if (!timestamp.equals("")) {
-                DVIRDataCRUDDto deleteDvir = this.dvirDataRepo.deleteDVIRDataByDriverIdAndTimestamp(driverId, timestamp);
+                DVIRDataCRUDDto deleteDvir = this.dvirDataRepo.deleteDVIRDataByDriverIdAndTimestamp(driverId,
+                        timestamp);
                 if (deleteDvir != null) {
                     String dvirId = deleteDvir.get_id();
 
@@ -10444,8 +12023,7 @@ public class DispatchServiceImpl implements DispatchService {
                     "companyName",
                     "vehicleId",
                     "timestamp"
-                }
-        );
+                });
         Aggregation aggregation = Aggregation.newAggregation(new AggregationOperation[]{filter, projectStage});
         return this.mongoTemplate.aggregate(aggregation, "dvir_data", DVIRDataCRUDDto.class).getMappedResults();
     }
@@ -10477,20 +12055,21 @@ public class DispatchServiceImpl implements DispatchService {
                     "companyName",
                     "vehicleId",
                     "timestamp"
-                }
-        );
+                });
         Aggregation aggregation = Aggregation.newAggregation(
                 new AggregationOperation[]{
-                    filter, projectStage, Aggregation.sort(Direction.ASC, new String[]{"driverId"}).and(Direction.DESC, new String[]{"receivedTimestamp"})
-                }
-        );
+                    filter, projectStage,
+                    Aggregation.sort(Direction.ASC, new String[]{"driverId"}).and(Direction.DESC,
+                            new String[]{"receivedTimestamp"})
+                });
         return this.mongoTemplate.aggregate(aggregation, "dvir_data", DVIRDataCRUDDto.class).getMappedResults();
     }
 
     public List<DVIRDataCRUDDto> lookupDVIRDataByClientOperation(long from, long to, long driverId, long clientId) {
         MatchOperation filter = null;
         if (driverId > 0L) {
-            filter = Aggregation.match(Criteria.where("lDateTime").gte(from).lte(to).and("driverId").is(driverId).and("clientId").is(clientId));
+            filter = Aggregation.match(Criteria.where("lDateTime").gte(from).lte(to).and("driverId").is(driverId)
+                    .and("clientId").is(clientId));
         } else {
             filter = Aggregation.match(Criteria.where("lDateTime").gte(from).lte(to).and("clientId").is(clientId));
         }
@@ -10514,13 +12093,13 @@ public class DispatchServiceImpl implements DispatchService {
                     "companyName",
                     "vehicleId",
                     "timestamp"
-                }
-        );
+                });
         Aggregation aggregation = Aggregation.newAggregation(
                 new AggregationOperation[]{
-                    filter, projectStage, Aggregation.sort(Direction.ASC, new String[]{"driverId"}).and(Direction.DESC, new String[]{"receivedTimestamp"})
-                }
-        );
+                    filter, projectStage,
+                    Aggregation.sort(Direction.ASC, new String[]{"driverId"}).and(Direction.DESC,
+                            new String[]{"receivedTimestamp"})
+                });
         return this.mongoTemplate.aggregate(aggregation, "dvir_data", DVIRDataCRUDDto.class).getMappedResults();
     }
 
@@ -10727,7 +12306,8 @@ public class DispatchServiceImpl implements DispatchService {
 
             Instant instant = Instant.now();
             eldOta.setAddedTimestamp(instant.toEpochMilli());
-            this.fileStorageLocation = Paths.get("/opt/tomcat/webapps/uploads/eld_ota_backup").toAbsolutePath().normalize();
+            this.fileStorageLocation = Paths.get("/opt/tomcat/webapps/uploads/eld_ota_backup").toAbsolutePath()
+                    .normalize();
 
             try {
                 if (Files.notExists(this.fileStorageLocation)) {
@@ -10958,11 +12538,12 @@ public class DispatchServiceImpl implements DispatchService {
 
     public List<ELDOtaStatus> lookupELDOtaStatusOperation(long from, long to) {
         MatchOperation filter = Aggregation.match(Criteria.where("addedTimestamp").gte(from).lte(to));
-        ProjectionOperation projectStage = Aggregation.project(new String[]{"otaStatusId", "hardwareVersion", "firmwareVersion", "deviceId", "addedTimestamp"})
+        ProjectionOperation projectStage = Aggregation.project(
+                new String[]{"otaStatusId", "hardwareVersion", "firmwareVersion", "deviceId", "addedTimestamp"})
                 .andExclude(new String[]{"_id"});
         Aggregation aggregation = Aggregation.newAggregation(
-                new AggregationOperation[]{filter, projectStage, Aggregation.sort(Direction.DESC, new String[]{"addedTimestamp"})}
-        );
+                new AggregationOperation[]{filter, projectStage,
+                    Aggregation.sort(Direction.DESC, new String[]{"addedTimestamp"})});
         return this.mongoTemplate.aggregate(aggregation, "eld_ota_status", ELDOtaStatus.class).getMappedResults();
     }
 
@@ -10979,7 +12560,8 @@ public class DispatchServiceImpl implements DispatchService {
         ResultWrapper<String> result = new ResultWrapper<>();
 
         try {
-            this.fileStorageLocation = Paths.get("/opt/tomcat/webapps/uploads/certified_signature").toAbsolutePath().normalize();
+            this.fileStorageLocation = Paths.get("/opt/tomcat/webapps/uploads/certified_signature").toAbsolutePath()
+                    .normalize();
 
             try {
                 if (Files.notExists(this.fileStorageLocation)) {
@@ -11030,7 +12612,8 @@ public class DispatchServiceImpl implements DispatchService {
     }
 
     @Override
-    public ResultWrapper<List<AddDriveringStatusResponseDto>> AddCertifiedLogOffline(AddCertifiedLogDto addCertifiedLogDto, String tokenValid) {
+    public ResultWrapper<List<AddDriveringStatusResponseDto>> AddCertifiedLogOffline(
+            AddCertifiedLogDto addCertifiedLogDto, String tokenValid) {
         ResultWrapper<List<AddDriveringStatusResponseDto>> result = new ResultWrapper<>();
         String sDebug = ">> ";
 
@@ -11049,49 +12632,56 @@ public class DispatchServiceImpl implements DispatchService {
                 var22.setLCertifiedDate(var22.getCertifiedDateTime());
                 var22.setAddedTimestamp(instant.toEpochMilli());
                 certifiedLog = (CertifiedLog) this.certifiedLogRepo.save(var22);
-                DriverStatusLog driverStatusLog = new DriverStatusLog();
-                long maxId = this.lookupMaxIdOfDriverOperation(certifiedLog.getDriverId());
-                if (maxId <= 0L) {
-                    maxId = 1L;
-                    driverStatusLog.setStatusId(maxId);
-                } else {
-                    driverStatusLog.setStatusId(++maxId);
-                }
+                if (!Boolean.FALSE.equals(certifiedLog.getIsCertified())) {
+                    DriverStatusLog driverStatusLog = new DriverStatusLog();
+                    long maxId = this.lookupMaxIdOfDriverOperation(certifiedLog.getDriverId());
+                    if (maxId <= 0L) {
+                        maxId = 1L;
+                        driverStatusLog.setStatusId(maxId);
+                    } else {
+                        driverStatusLog.setStatusId(++maxId);
+                    }
 
-                Pageable pageableRequest = PageRequest.of(0, 1, Sort.by(new String[]{"_id"}).descending());
-                Query queryLog = new Query(Criteria.where("driverId").is(certifiedLog.getDriverId()));
-                queryLog.limit(1);
-                queryLog.with(pageableRequest);
-                List<CertifiedLogViewDto> certifiedLogViewDtoData = this.mongoTemplate.find(queryLog, CertifiedLogViewDto.class, "certified_log");
-                EmployeeMaster empInfo = this.employeeMasterRepo.findByEmployeeId((int) certifiedLog.getDriverId());
-                driverStatusLog.setLogDataId(certifiedLogViewDtoData.get(0).get_id());
-                driverStatusLog.setDriverId(certifiedLog.getDriverId());
-                driverStatusLog.setVehicleId(certifiedLog.getVehicleId());
-                driverStatusLog.setClientId(empInfo.getClientId());
-                driverStatusLog.setStatus("Certified");
-                driverStatusLog.setLattitude(0.0);
-                driverStatusLog.setLongitude(0.0);
-                driverStatusLog.setDateTime(certifiedLog.getLCertifiedDate());
-                driverStatusLog.setLogType("Certified Log");
-                driverStatusLog.setEngineHour("0");
-                driverStatusLog.setOrigin("");
-                driverStatusLog.setOdometer(0.0);
-                driverStatusLog.setIsVoilation(0);
-                driverStatusLog.setNote("");
-                driverStatusLog.setCustomLocation("");
-                driverStatusLog.setIsReportGenerated(1);
-                driverStatusLog.setReceivedTimestamp(instant.toEpochMilli());
-                driverStatusLog.setIsVisible(1);
-                List<DriverStatusLog> logDataExist = this.driverStatusLogRepo.CheckDriverStatusLogById(certifiedLogViewDtoData.get(0).get_id());
-                if (logDataExist.size() <= 0) {
-                    this.driverStatusLogRepo.save(driverStatusLog);
-                    this.UpdateDriverSequenceId(certifiedLog.getDriverId(), certifiedLog.getLCertifiedDate());
+                    Pageable pageableRequest = PageRequest.of(0, 1, Sort.by(new String[]{"_id"}).descending());
+                    Query queryLog = new Query(Criteria.where("driverId").is(certifiedLog.getDriverId()));
+                    queryLog.limit(1);
+                    queryLog.with(pageableRequest);
+                    List<CertifiedLogViewDto> certifiedLogViewDtoData = this.mongoTemplate.find(queryLog,
+                            CertifiedLogViewDto.class, "certified_log");
+                    EmployeeMaster empInfo = this.employeeMasterRepo.findByEmployeeId((int) certifiedLog.getDriverId());
+                    driverStatusLog.setLogDataId(certifiedLogViewDtoData.get(0).get_id());
+                    driverStatusLog.setDriverId(certifiedLog.getDriverId());
+                    driverStatusLog.setVehicleId(certifiedLog.getVehicleId());
+                    driverStatusLog.setClientId(empInfo.getClientId());
+                    driverStatusLog.setStatus("Certified");
+                    driverStatusLog.setLattitude(0.0);
+                    driverStatusLog.setLongitude(0.0);
+                    driverStatusLog.setDateTime(certifiedLog.getLCertifiedDate());
+                    driverStatusLog.setLogType("Certified Log");
+                    driverStatusLog.setEngineHour("0");
+                    driverStatusLog.setOrigin("");
+                    driverStatusLog.setOdometer(0.0);
+                    driverStatusLog.setIsVoilation(0);
+                    driverStatusLog.setNote("");
+                    driverStatusLog.setCustomLocation("");
+                    driverStatusLog.setIsReportGenerated(1);
+                    driverStatusLog.setReceivedTimestamp(instant.toEpochMilli());
+                    driverStatusLog.setIsVisible(1);
+                    List<DriverStatusLog> logDataExist = this.driverStatusLogRepo
+                            .CheckDriverStatusLogById(certifiedLogViewDtoData.get(0).get_id());
+                    if (logDataExist.size() <= 0) {
+                        this.driverStatusLogRepo.save(driverStatusLog);
+                        this.UpdateDriverSequenceId(certifiedLog.getDriverId(), certifiedLog.getLCertifiedDate());
+                    }
+                } else {
+                    this.invalidateCertifiedLogForDate(certifiedLog.getDriverId(), certifiedLog.getLCertifiedDate());
                 }
 
                 this.UpdateDriverSequenceId(certifiedLog.getDriverId(), certifiedLog.getLCertifiedDate());
                 sDebug = sDebug + "5,";
                 CertifiedLogViewDto certifiedLogViewDto = this.certifiedLogRepo
-                        .findAndViewCertifiedLogByDriverId(certifiedLog.getDriverId(), certifiedLog.getLCertifiedDate());
+                        .findAndViewCertifiedLogByDriverId(certifiedLog.getDriverId(),
+                                certifiedLog.getLCertifiedDate());
                 String objId = certifiedLogViewDto.get_id();
                 sDebug = sDebug + "6,";
                 AddDriveringStatusResponseDto addCertifiedLog = new AddDriveringStatusResponseDto();
@@ -11120,7 +12710,8 @@ public class DispatchServiceImpl implements DispatchService {
     }
 
     @Override
-    public ResultWrapper<String> AddCertifiedLog(List<MultipartFile> file, CertifiedLog certifiedLog, String tokenValid) {
+    public ResultWrapper<String> AddCertifiedLog(List<MultipartFile> file, CertifiedLog certifiedLog,
+            String tokenValid) {
         ResultWrapper<String> result = new ResultWrapper<>();
 
         try {
@@ -11128,14 +12719,16 @@ public class DispatchServiceImpl implements DispatchService {
             Instant instant = Instant.now();
             certifiedLog.setAddedTimestamp(instant.toEpochMilli());
             if (tokenValid.equals("true")) {
-                this.fileStorageLocation = Paths.get("/opt/tomcat/webapps/uploads/certified_signature").toAbsolutePath().normalize();
+                this.fileStorageLocation = Paths.get("/opt/tomcat/webapps/uploads/certified_signature").toAbsolutePath()
+                        .normalize();
 
                 try {
                     if (Files.notExists(this.fileStorageLocation)) {
                         Files.createDirectories(this.fileStorageLocation);
                     }
                 } catch (Exception var19) {
-                    throw new Exception("Could not create the directory where the uploaded files will be stored.", var19);
+                    throw new Exception("Could not create the directory where the uploaded files will be stored.",
+                            var19);
                 }
 
                 int iCount = 0;
@@ -11174,53 +12767,61 @@ public class DispatchServiceImpl implements DispatchService {
                 }
 
                 certifiedLog = (CertifiedLog) this.certifiedLogRepo.save(certifiedLog);
-                DriverStatusLog driverStatusLog = new DriverStatusLog();
-                long maxId = this.lookupMaxIdOfDriverOperation(certifiedLog.getDriverId());
-                if (maxId <= 0L) {
-                    maxId = 1L;
-                    driverStatusLog.setStatusId(maxId);
-                } else {
-                    driverStatusLog.setStatusId(++maxId);
-                }
+                if (!Boolean.FALSE.equals(certifiedLog.getIsCertified())) {
+                    DriverStatusLog driverStatusLog = new DriverStatusLog();
+                    long maxId = this.lookupMaxIdOfDriverOperation(certifiedLog.getDriverId());
+                    if (maxId <= 0L) {
+                        maxId = 1L;
+                        driverStatusLog.setStatusId(maxId);
+                    } else {
+                        driverStatusLog.setStatusId(++maxId);
+                    }
 
-                Pageable pageableRequest = PageRequest.of(0, 1, Sort.by(new String[]{"_id"}).descending());
-                Query queryLog = new Query(Criteria.where("driverId").is(certifiedLog.getDriverId()));
-                queryLog.limit(1);
-                queryLog.with(pageableRequest);
-                List<CertifiedLogViewDto> certifiedLogViewDtoData = this.mongoTemplate.find(queryLog, CertifiedLogViewDto.class, "certified_log");
-                EmployeeMaster empInfo = this.employeeMasterRepo.findByEmployeeId((int) certifiedLog.getDriverId());
-                driverStatusLog.setLogDataId(certifiedLogViewDtoData.get(0).get_id());
-                driverStatusLog.setDriverId(certifiedLog.getDriverId());
-                driverStatusLog.setVehicleId(certifiedLog.getVehicleId());
-                driverStatusLog.setClientId(empInfo.getClientId());
-                driverStatusLog.setStatus("Certified");
-                driverStatusLog.setLattitude(0.0);
-                driverStatusLog.setLongitude(0.0);
-                driverStatusLog.setDateTime(certifiedLog.getLCertifiedDate());
-                driverStatusLog.setLogType("Certified Log");
-                driverStatusLog.setEngineHour("0");
-                driverStatusLog.setOrigin("");
-                driverStatusLog.setOdometer(0.0);
-                driverStatusLog.setIsVoilation(0);
-                driverStatusLog.setNote("");
-                driverStatusLog.setCustomLocation("");
-                driverStatusLog.setIsReportGenerated(1);
-                driverStatusLog.setReceivedTimestamp(instant.toEpochMilli());
-                driverStatusLog.setIsVisible(1);
-                List<DriverStatusLog> logDataExist = this.driverStatusLogRepo.CheckDriverStatusLogById(certifiedLogViewDtoData.get(0).get_id());
-                if (logDataExist.size() <= 0) {
-                    this.driverStatusLogRepo.save(driverStatusLog);
-                    this.UpdateDriverSequenceId(certifiedLog.getDriverId(), certifiedLog.getLCertifiedDate());
+                    Pageable pageableRequest = PageRequest.of(0, 1, Sort.by(new String[]{"_id"}).descending());
+                    Query queryLog = new Query(Criteria.where("driverId").is(certifiedLog.getDriverId()));
+                    queryLog.limit(1);
+                    queryLog.with(pageableRequest);
+                    List<CertifiedLogViewDto> certifiedLogViewDtoData = this.mongoTemplate.find(queryLog,
+                            CertifiedLogViewDto.class, "certified_log");
+                    EmployeeMaster empInfo = this.employeeMasterRepo.findByEmployeeId((int) certifiedLog.getDriverId());
+                    driverStatusLog.setLogDataId(certifiedLogViewDtoData.get(0).get_id());
+                    driverStatusLog.setDriverId(certifiedLog.getDriverId());
+                    driverStatusLog.setVehicleId(certifiedLog.getVehicleId());
+                    driverStatusLog.setClientId(empInfo.getClientId());
+                    driverStatusLog.setStatus("Certified");
+                    driverStatusLog.setLattitude(0.0);
+                    driverStatusLog.setLongitude(0.0);
+                    driverStatusLog.setDateTime(certifiedLog.getLCertifiedDate());
+                    driverStatusLog.setLogType("Certified Log");
+                    driverStatusLog.setEngineHour("0");
+                    driverStatusLog.setOrigin("");
+                    driverStatusLog.setOdometer(0.0);
+                    driverStatusLog.setIsVoilation(0);
+                    driverStatusLog.setNote("");
+                    driverStatusLog.setCustomLocation("");
+                    driverStatusLog.setIsReportGenerated(1);
+                    driverStatusLog.setReceivedTimestamp(instant.toEpochMilli());
+                    driverStatusLog.setIsVisible(1);
+                    List<DriverStatusLog> logDataExist = this.driverStatusLogRepo
+                            .CheckDriverStatusLogById(certifiedLogViewDtoData.get(0).get_id());
+                    if (logDataExist.size() <= 0) {
+                        this.driverStatusLogRepo.save(driverStatusLog);
+                        this.UpdateDriverSequenceId(certifiedLog.getDriverId(), certifiedLog.getLCertifiedDate());
+                    }
+                } else {
+                    this.invalidateCertifiedLogForDate(certifiedLog.getDriverId(), certifiedLog.getLCertifiedDate());
                 }
             } else {
-                this.fileStorageLocation = Paths.get("/opt/tomcat/webapps/uploads/certified_signature").toAbsolutePath().normalize();
+                this.fileStorageLocation = Paths.get("/opt/tomcat/webapps/uploads/certified_signature").toAbsolutePath()
+                        .normalize();
 
                 try {
                     if (Files.notExists(this.fileStorageLocation)) {
                         Files.createDirectories(this.fileStorageLocation);
                     }
                 } catch (Exception var20) {
-                    throw new Exception("Could not create the directory where the uploaded files will be stored.", var20);
+                    throw new Exception("Could not create the directory where the uploaded files will be stored.",
+                            var20);
                 }
 
                 int iCount = 0;
@@ -11259,43 +12860,49 @@ public class DispatchServiceImpl implements DispatchService {
                 }
 
                 certifiedLog = (CertifiedLog) this.certifiedLogRepo.save(certifiedLog);
-                DriverStatusLog driverStatusLog = new DriverStatusLog();
-                long maxId = this.lookupMaxIdOfDriverOperation(certifiedLog.getDriverId());
-                if (maxId <= 0L) {
-                    maxId = 1L;
-                    driverStatusLog.setStatusId(maxId);
-                } else {
-                    driverStatusLog.setStatusId(++maxId);
-                }
+                if (!Boolean.FALSE.equals(certifiedLog.getIsCertified())) {
+                    DriverStatusLog driverStatusLog = new DriverStatusLog();
+                    long maxId = this.lookupMaxIdOfDriverOperation(certifiedLog.getDriverId());
+                    if (maxId <= 0L) {
+                        maxId = 1L;
+                        driverStatusLog.setStatusId(maxId);
+                    } else {
+                        driverStatusLog.setStatusId(++maxId);
+                    }
 
-                Pageable pageableRequest = PageRequest.of(0, 1, Sort.by(new String[]{"_id"}).descending());
-                Query queryLog = new Query(Criteria.where("driverId").is(certifiedLog.getDriverId()));
-                queryLog.limit(1);
-                queryLog.with(pageableRequest);
-                List<CertifiedLogViewDto> certifiedLogViewDtoData = this.mongoTemplate.find(queryLog, CertifiedLogViewDto.class, "certified_log");
-                EmployeeMaster empInfo = this.employeeMasterRepo.findByEmployeeId((int) certifiedLog.getDriverId());
-                driverStatusLog.setLogDataId(certifiedLogViewDtoData.get(0).get_id());
-                driverStatusLog.setDriverId(certifiedLog.getDriverId());
-                driverStatusLog.setVehicleId(certifiedLog.getVehicleId());
-                driverStatusLog.setClientId(empInfo.getClientId());
-                driverStatusLog.setStatus("Certified");
-                driverStatusLog.setLattitude(0.0);
-                driverStatusLog.setLongitude(0.0);
-                driverStatusLog.setDateTime(certifiedLog.getLCertifiedDate());
-                driverStatusLog.setLogType("Certified Log");
-                driverStatusLog.setEngineHour("0");
-                driverStatusLog.setOrigin("");
-                driverStatusLog.setOdometer(0.0);
-                driverStatusLog.setIsVoilation(0);
-                driverStatusLog.setNote("");
-                driverStatusLog.setCustomLocation("");
-                driverStatusLog.setIsReportGenerated(1);
-                driverStatusLog.setReceivedTimestamp(instant.toEpochMilli());
-                driverStatusLog.setIsVisible(1);
-                List<DriverStatusLog> logDataExist = this.driverStatusLogRepo.CheckDriverStatusLogById(certifiedLogViewDtoData.get(0).get_id());
-                if (logDataExist.size() <= 0) {
-                    this.driverStatusLogRepo.save(driverStatusLog);
-                    this.UpdateDriverSequenceId(certifiedLog.getDriverId(), certifiedLog.getLCertifiedDate());
+                    Pageable pageableRequest = PageRequest.of(0, 1, Sort.by(new String[]{"_id"}).descending());
+                    Query queryLog = new Query(Criteria.where("driverId").is(certifiedLog.getDriverId()));
+                    queryLog.limit(1);
+                    queryLog.with(pageableRequest);
+                    List<CertifiedLogViewDto> certifiedLogViewDtoData = this.mongoTemplate.find(queryLog,
+                            CertifiedLogViewDto.class, "certified_log");
+                    EmployeeMaster empInfo = this.employeeMasterRepo.findByEmployeeId((int) certifiedLog.getDriverId());
+                    driverStatusLog.setLogDataId(certifiedLogViewDtoData.get(0).get_id());
+                    driverStatusLog.setDriverId(certifiedLog.getDriverId());
+                    driverStatusLog.setVehicleId(certifiedLog.getVehicleId());
+                    driverStatusLog.setClientId(empInfo.getClientId());
+                    driverStatusLog.setStatus("Certified");
+                    driverStatusLog.setLattitude(0.0);
+                    driverStatusLog.setLongitude(0.0);
+                    driverStatusLog.setDateTime(certifiedLog.getLCertifiedDate());
+                    driverStatusLog.setLogType("Certified Log");
+                    driverStatusLog.setEngineHour("0");
+                    driverStatusLog.setOrigin("");
+                    driverStatusLog.setOdometer(0.0);
+                    driverStatusLog.setIsVoilation(0);
+                    driverStatusLog.setNote("");
+                    driverStatusLog.setCustomLocation("");
+                    driverStatusLog.setIsReportGenerated(1);
+                    driverStatusLog.setReceivedTimestamp(instant.toEpochMilli());
+                    driverStatusLog.setIsVisible(1);
+                    List<DriverStatusLog> logDataExist = this.driverStatusLogRepo
+                            .CheckDriverStatusLogById(certifiedLogViewDtoData.get(0).get_id());
+                    if (logDataExist.size() <= 0) {
+                        this.driverStatusLogRepo.save(driverStatusLog);
+                        this.UpdateDriverSequenceId(certifiedLog.getDriverId(), certifiedLog.getLCertifiedDate());
+                    }
+                } else {
+                    this.invalidateCertifiedLogForDate(certifiedLog.getDriverId(), certifiedLog.getLCertifiedDate());
                 }
             }
 
@@ -11320,14 +12927,16 @@ public class DispatchServiceImpl implements DispatchService {
     }
 
     @Override
-    public ResultWrapper<String> AddCertifiedLogFromWeb(List<MultipartFile> file, CertifiedLog certifiedLog, String tokenValid) {
+    public ResultWrapper<String> AddCertifiedLogFromWeb(List<MultipartFile> file, CertifiedLog certifiedLog,
+            String tokenValid) {
         ResultWrapper<String> result = new ResultWrapper<>();
 
         try {
             certifiedLog.setLCertifiedDate(certifiedLog.getCertifiedDateTime());
             Instant instant = Instant.now();
             certifiedLog.setAddedTimestamp(instant.toEpochMilli());
-            this.fileStorageLocation = Paths.get("/opt/tomcat/webapps/uploads/certified_signature").toAbsolutePath().normalize();
+            this.fileStorageLocation = Paths.get("/opt/tomcat/webapps/uploads/certified_signature").toAbsolutePath()
+                    .normalize();
 
             try {
                 if (Files.notExists(this.fileStorageLocation)) {
@@ -11373,43 +12982,49 @@ public class DispatchServiceImpl implements DispatchService {
             }
 
             certifiedLog = (CertifiedLog) this.certifiedLogRepo.save(certifiedLog);
-            DriverStatusLog driverStatusLog = new DriverStatusLog();
-            long maxId = this.lookupMaxIdOfDriverOperation(certifiedLog.getDriverId());
-            if (maxId <= 0L) {
-                maxId = 1L;
-                driverStatusLog.setStatusId(maxId);
-            } else {
-                driverStatusLog.setStatusId(++maxId);
-            }
+            if (!Boolean.FALSE.equals(certifiedLog.getIsCertified())) {
+                DriverStatusLog driverStatusLog = new DriverStatusLog();
+                long maxId = this.lookupMaxIdOfDriverOperation(certifiedLog.getDriverId());
+                if (maxId <= 0L) {
+                    maxId = 1L;
+                    driverStatusLog.setStatusId(maxId);
+                } else {
+                    driverStatusLog.setStatusId(++maxId);
+                }
 
-            Pageable pageableRequest = PageRequest.of(0, 1, Sort.by(new String[]{"_id"}).descending());
-            Query queryLog = new Query(Criteria.where("driverId").is(certifiedLog.getDriverId()));
-            queryLog.limit(1);
-            queryLog.with(pageableRequest);
-            List<CertifiedLogViewDto> certifiedLogViewDtoData = this.mongoTemplate.find(queryLog, CertifiedLogViewDto.class, "certified_log");
-            EmployeeMaster empInfo = this.employeeMasterRepo.findByEmployeeId((int) certifiedLog.getDriverId());
-            driverStatusLog.setLogDataId(certifiedLogViewDtoData.get(0).get_id());
-            driverStatusLog.setDriverId(certifiedLog.getDriverId());
-            driverStatusLog.setVehicleId(certifiedLog.getVehicleId());
-            driverStatusLog.setClientId(empInfo.getClientId());
-            driverStatusLog.setStatus("Certified");
-            driverStatusLog.setLattitude(0.0);
-            driverStatusLog.setLongitude(0.0);
-            driverStatusLog.setDateTime(certifiedLog.getLCertifiedDate());
-            driverStatusLog.setLogType("Certified Log");
-            driverStatusLog.setEngineHour("0");
-            driverStatusLog.setOrigin("");
-            driverStatusLog.setOdometer(0.0);
-            driverStatusLog.setIsVoilation(0);
-            driverStatusLog.setNote("");
-            driverStatusLog.setCustomLocation("");
-            driverStatusLog.setIsReportGenerated(1);
-            driverStatusLog.setReceivedTimestamp(instant.toEpochMilli());
-            driverStatusLog.setIsVisible(1);
-            List<DriverStatusLog> logDataExist = this.driverStatusLogRepo.CheckDriverStatusLogById(certifiedLogViewDtoData.get(0).get_id());
-            if (logDataExist.size() <= 0) {
-                this.driverStatusLogRepo.save(driverStatusLog);
-                this.UpdateDriverSequenceId(certifiedLog.getDriverId(), certifiedLog.getLCertifiedDate());
+                Pageable pageableRequest = PageRequest.of(0, 1, Sort.by(new String[]{"_id"}).descending());
+                Query queryLog = new Query(Criteria.where("driverId").is(certifiedLog.getDriverId()));
+                queryLog.limit(1);
+                queryLog.with(pageableRequest);
+                List<CertifiedLogViewDto> certifiedLogViewDtoData = this.mongoTemplate.find(queryLog,
+                        CertifiedLogViewDto.class, "certified_log");
+                EmployeeMaster empInfo = this.employeeMasterRepo.findByEmployeeId((int) certifiedLog.getDriverId());
+                driverStatusLog.setLogDataId(certifiedLogViewDtoData.get(0).get_id());
+                driverStatusLog.setDriverId(certifiedLog.getDriverId());
+                driverStatusLog.setVehicleId(certifiedLog.getVehicleId());
+                driverStatusLog.setClientId(empInfo.getClientId());
+                driverStatusLog.setStatus("Certified");
+                driverStatusLog.setLattitude(0.0);
+                driverStatusLog.setLongitude(0.0);
+                driverStatusLog.setDateTime(certifiedLog.getLCertifiedDate());
+                driverStatusLog.setLogType("Certified Log");
+                driverStatusLog.setEngineHour("0");
+                driverStatusLog.setOrigin("");
+                driverStatusLog.setOdometer(0.0);
+                driverStatusLog.setIsVoilation(0);
+                driverStatusLog.setNote("");
+                driverStatusLog.setCustomLocation("");
+                driverStatusLog.setIsReportGenerated(1);
+                driverStatusLog.setReceivedTimestamp(instant.toEpochMilli());
+                driverStatusLog.setIsVisible(1);
+                List<DriverStatusLog> logDataExist = this.driverStatusLogRepo
+                        .CheckDriverStatusLogById(certifiedLogViewDtoData.get(0).get_id());
+                if (logDataExist.size() <= 0) {
+                    this.driverStatusLogRepo.save(driverStatusLog);
+                    this.UpdateDriverSequenceId(certifiedLog.getDriverId(), certifiedLog.getLCertifiedDate());
+                }
+            } else {
+                this.invalidateCertifiedLogForDate(certifiedLog.getDriverId(), certifiedLog.getLCertifiedDate());
             }
 
             if (certifiedLog.getLCertifiedDate() > 0L) {
@@ -11458,13 +13073,15 @@ public class DispatchServiceImpl implements DispatchService {
                     driverName = empInfo.getFirstName() + " " + empInfo.getLastName();
                     certifiedLogViewDto.get(i).setDriverName(driverName);
                     if (certifiedLogViewDto.get(i).getCoDriverId() > 0L) {
-                        empInfo = this.employeeMasterRepo.findByEmployeeId((int) certifiedLogViewDto.get(i).getCoDriverId());
+                        empInfo = this.employeeMasterRepo
+                                .findByEmployeeId((int) certifiedLogViewDto.get(i).getCoDriverId());
                         driverName = empInfo.getFirstName() + " " + empInfo.getLastName();
                         certifiedLogViewDto.get(i).setCoDriverName(driverName);
                     }
 
                     if (certifiedLogViewDto.get(i).getVehicleId() > 0L) {
-                        VehicleMaster vehcileInfo = this.vehicleMasterRepo.findByVehicleId((int) certifiedLogViewDto.get(i).getVehicleId());
+                        VehicleMaster vehcileInfo = this.vehicleMasterRepo
+                                .findByVehicleId((int) certifiedLogViewDto.get(i).getVehicleId());
                         certifiedLogViewDto.get(i).setVehicleName(vehcileInfo.getVehicleNo());
                     }
                 }
@@ -11486,7 +13103,8 @@ public class DispatchServiceImpl implements DispatchService {
     }
 
     public List<CertifiedLogViewDto> lookupCertifiedLogDataOperation(long from, long to, long driverId) {
-        MatchOperation filter = Aggregation.match(Criteria.where("lCertifiedDate").gte(from).lte(to).and("driverId").is(driverId));
+        MatchOperation filter = Aggregation
+                .match(Criteria.where("lCertifiedDate").gte(from).lte(to).and("driverId").is(driverId));
         ProjectionOperation projectStage = Aggregation.project(
                 new String[]{
                     "driverId",
@@ -11500,8 +13118,7 @@ public class DispatchServiceImpl implements DispatchService {
                     "addedTimestamp",
                     "_id",
                     "certifiedAt"
-                }
-        );
+                });
         Aggregation aggregation = Aggregation.newAggregation(new AggregationOperation[]{filter, projectStage});
         return this.mongoTemplate.aggregate(aggregation, "certified_log", CertifiedLogViewDto.class).getMappedResults();
     }
@@ -11515,7 +13132,8 @@ public class DispatchServiceImpl implements DispatchService {
             Instant instant = Instant.now();
             if (tokenValid.equals("true")) {
                 Query query = new Query();
-                query.addCriteria(Criteria.where("certifiedDate").is(certifiedLog.getCertifiedDate()).and("driverId").is(certifiedLog.getDriverId()));
+                query.addCriteria(Criteria.where("certifiedDate").is(certifiedLog.getCertifiedDate()).and("driverId")
+                        .is(certifiedLog.getDriverId()));
                 Update update = new Update();
                 sDebug = sDebug + "2,";
                 update.set("vehicleId", certifiedLog.getVehicleId());
@@ -11528,7 +13146,8 @@ public class DispatchServiceImpl implements DispatchService {
                 this.mongoTemplate.updateMulti(query, update, CertifiedLog.class);
             } else {
                 Query query = new Query();
-                query.addCriteria(Criteria.where("certifiedDate").is(certifiedLog.getCertifiedDate()).and("driverId").is(certifiedLog.getDriverId()));
+                query.addCriteria(Criteria.where("certifiedDate").is(certifiedLog.getCertifiedDate()).and("driverId")
+                        .is(certifiedLog.getDriverId()));
                 Update update = new Update();
                 sDebug = sDebug + "2,";
                 update.set("vehicleId", certifiedLog.getVehicleId());
@@ -11683,7 +13302,8 @@ public class DispatchServiceImpl implements DispatchService {
     }
 
     public JFreeChart createChart(XYDataset dataset) {
-        JFreeChart chart = ChartFactory.createXYLineChart("Driver Working Status", "", "", dataset, PlotOrientation.VERTICAL, true, true, false);
+        JFreeChart chart = ChartFactory.createXYLineChart("Driver Working Status", "", "", dataset,
+                PlotOrientation.VERTICAL, true, true, false);
         XYPlot plot = chart.getXYPlot();
         XYLineAndShapeRenderer renderer = new XYLineAndShapeRenderer();
         renderer.setSeriesPaint(0, Color.RED);
@@ -11706,7 +13326,8 @@ public class DispatchServiceImpl implements DispatchService {
             Instant instant = Instant.now();
             driverWorkingStatus.setReceivedTimestamp(instant.toEpochMilli());
             if (tokenValid.equals("true")) {
-                List<DriverWorkingStatus> driverWorkingData = this.driverWorkingStatusRepo.findAndViewDriverWorkingstatusById(driverWorkingStatus.getDriverId());
+                List<DriverWorkingStatus> driverWorkingData = this.driverWorkingStatusRepo
+                        .findAndViewDriverWorkingstatusById(driverWorkingStatus.getDriverId());
                 if (driverWorkingData.size() <= 0) {
                     driverWorkingStatus = (DriverWorkingStatus) this.driverWorkingStatusRepo.save(driverWorkingStatus);
                 } else {
@@ -11805,7 +13426,8 @@ public class DispatchServiceImpl implements DispatchService {
     }
 
     @Override
-    public ResultWrapper<List<ELDSupportViewDto>> ViewELDSupport(ELDSupportViewDto eldSupportViewDto, String tokenValid) {
+    public ResultWrapper<List<ELDSupportViewDto>> ViewELDSupport(ELDSupportViewDto eldSupportViewDto,
+            String tokenValid) {
         ResultWrapper<List<ELDSupportViewDto>> result = new ResultWrapper<>();
         String sDebug = "";
 
@@ -11826,21 +13448,25 @@ public class DispatchServiceImpl implements DispatchService {
                 for (int i = 0; i < eldSupportViewDtoData.size(); ++i) {
                     try {
                         if (eldSupportViewDtoData.get(i).getDriverId() > 0L) {
-                            EmployeeMaster empInfo = this.employeeMasterRepo.findByEmployeeId((int) eldSupportViewDtoData.get(i).getDriverId());
-                            eldSupportViewDtoData.get(i).setDriverName(empInfo.getFirstName() + " " + empInfo.getLastName());
+                            EmployeeMaster empInfo = this.employeeMasterRepo
+                                    .findByEmployeeId((int) eldSupportViewDtoData.get(i).getDriverId());
+                            eldSupportViewDtoData.get(i)
+                                    .setDriverName(empInfo.getFirstName() + " " + empInfo.getLastName());
                         } else {
                             eldSupportViewDtoData.get(i).setDriverName("");
                         }
 
                         if (eldSupportViewDtoData.get(i).getVehicleId() > 0L) {
-                            VehicleMaster vehcileInfo = this.vehicleMasterRepo.findByVehicleId((int) eldSupportViewDtoData.get(i).getVehicleId());
+                            VehicleMaster vehcileInfo = this.vehicleMasterRepo
+                                    .findByVehicleId((int) eldSupportViewDtoData.get(i).getVehicleId());
                             eldSupportViewDtoData.get(i).setVehicleNo(vehcileInfo.getVehicleNo());
                         } else {
                             eldSupportViewDtoData.get(i).setVehicleNo("");
                         }
 
                         if (eldSupportViewDtoData.get(i).getCompanyId() > 0L) {
-                            ClientMaster clientInfo = this.clientMasterRepo.findByClientId((int) eldSupportViewDtoData.get(i).getCompanyId());
+                            ClientMaster clientInfo = this.clientMasterRepo
+                                    .findByClientId((int) eldSupportViewDtoData.get(i).getCompanyId());
                             eldSupportViewDtoData.get(i).setCompanyName(clientInfo.getClientName());
                         } else {
                             eldSupportViewDtoData.get(i).setCompanyName("");
@@ -11869,7 +13495,8 @@ public class DispatchServiceImpl implements DispatchService {
     }
 
     @Override
-    public ResultWrapper<List<ELDSupportViewDto>> ViewELDSupportByDate(ELDSupportViewDto eldSupportViewDto, String tokenValid) {
+    public ResultWrapper<List<ELDSupportViewDto>> ViewELDSupportByDate(ELDSupportViewDto eldSupportViewDto,
+            String tokenValid) {
         ResultWrapper<List<ELDSupportViewDto>> result = new ResultWrapper<>();
         String sDebug = "";
 
@@ -11887,21 +13514,25 @@ public class DispatchServiceImpl implements DispatchService {
             for (int i = 0; i < eldSupportViewDtoData.size(); ++i) {
                 try {
                     if (eldSupportViewDtoData.get(i).getDriverId() > 0L) {
-                        EmployeeMaster empInfo = this.employeeMasterRepo.findByEmployeeId((int) eldSupportViewDtoData.get(i).getDriverId());
-                        eldSupportViewDtoData.get(i).setDriverName(empInfo.getFirstName() + " " + empInfo.getLastName());
+                        EmployeeMaster empInfo = this.employeeMasterRepo
+                                .findByEmployeeId((int) eldSupportViewDtoData.get(i).getDriverId());
+                        eldSupportViewDtoData.get(i)
+                                .setDriverName(empInfo.getFirstName() + " " + empInfo.getLastName());
                     } else {
                         eldSupportViewDtoData.get(i).setDriverName("");
                     }
 
                     if (eldSupportViewDtoData.get(i).getVehicleId() > 0L) {
-                        VehicleMaster vehcileInfo = this.vehicleMasterRepo.findByVehicleId((int) eldSupportViewDtoData.get(i).getVehicleId());
+                        VehicleMaster vehcileInfo = this.vehicleMasterRepo
+                                .findByVehicleId((int) eldSupportViewDtoData.get(i).getVehicleId());
                         eldSupportViewDtoData.get(i).setVehicleNo(vehcileInfo.getVehicleNo());
                     } else {
                         eldSupportViewDtoData.get(i).setVehicleNo("");
                     }
 
                     if (eldSupportViewDtoData.get(i).getCompanyId() > 0L) {
-                        ClientMaster clientInfo = this.clientMasterRepo.findByClientId((int) eldSupportViewDtoData.get(i).getCompanyId());
+                        ClientMaster clientInfo = this.clientMasterRepo
+                                .findByClientId((int) eldSupportViewDtoData.get(i).getCompanyId());
                         eldSupportViewDtoData.get(i).setCompanyName(clientInfo.getClientName());
                     } else {
                         eldSupportViewDtoData.get(i).setCompanyName("");
@@ -11932,8 +13563,8 @@ public class DispatchServiceImpl implements DispatchService {
         }
 
         ProjectionOperation projectStage = Aggregation.project(
-                new String[]{"driverId", "vehicleId", "companyId", "message", "status", "utcDateTime", "receivedTimestamp", "_id"}
-        );
+                new String[]{"driverId", "vehicleId", "companyId", "message", "status", "utcDateTime",
+                    "receivedTimestamp", "_id"});
         Aggregation aggregation = Aggregation.newAggregation(new AggregationOperation[]{filter, projectStage});
         return this.mongoTemplate.aggregate(aggregation, "eld_support", ELDSupportViewDto.class).getMappedResults();
     }
@@ -11941,240 +13572,48 @@ public class DispatchServiceImpl implements DispatchService {
     @Override
     public ResultWrapper<String> UpdateSequenceNoManually(DriveringStatusCRUDDto driveringStatusCRUDDto) {
         ResultWrapper<String> result = new ResultWrapper<>();
-        String sDebug = " >> ";
 
         try {
-            DecimalFormat df = new DecimalFormat("0.00");
-            List<DriveringStatusLogViewDto> driveringStatusLogViewDto = new ArrayList<>();
-            DriveringStatusLogViewDto driveringStatusLogData = new DriveringStatusLogViewDto();
             long driverId = driveringStatusCRUDDto.getDriverId();
+
+            if (driverId <= 0L) {
+                result.setResult(null);
+                result.setStatus(Result.FAIL);
+                result.setMessage("Invalid Driver Id.");
+                return result;
+            }
+
             String fromDate = driveringStatusCRUDDto.getFromDate();
-            String toDate = driveringStatusCRUDDto.getToDate();
+
+            if (fromDate == null || fromDate.trim().isEmpty()) {
+                result.setResult(null);
+                result.setStatus(Result.FAIL);
+                result.setMessage("From Date is required.");
+                return result;
+            }
+
             DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
             LocalDateTime ldtFromDate = LocalDateTime.parse(fromDate, formatter);
             long from = ldtFromDate.atZone(ZoneId.systemDefault()).toInstant().toEpochMilli();
-            LocalDateTime ldtToDate = LocalDateTime.parse(toDate, formatter);
-            long to = ldtToDate.atZone(ZoneId.systemDefault()).toInstant().toEpochMilli();
-            String driverName = "";
-            String employeeStatus = "";
-            if (driverId > 0L) {
-                EmployeeMaster empInfo = this.employeeMasterRepo.findByEmployeeId((int) driverId);
-                driverName = empInfo.getFirstName() + " " + empInfo.getLastName();
-                employeeStatus = empInfo.getStatus();
-                List<LoginLog> loginLog = this.lookupLoginLogDataOperation(from, to, driverId, "loginDateTime");
-                sDebug = sDebug + " >> " + loginLog.size() + ",";
 
-                for (int i = 0; i < loginLog.size(); ++i) {
-                    try {
-                        if (loginLog.get(i).getLoginDateTime() > 0L) {
-                            DriverStatusLog dsLog = this.driverStatusLogRepo.findAndViewDriverStatusLogById1(loginLog.get(i).get_id(), "Login");
-                            driveringStatusLogData = new DriveringStatusLogViewDto();
-                            driveringStatusLogData.setDriverId(driverId);
-                            driveringStatusLogData.setDriverStatusId(loginLog.get(i).get_id());
-                            driveringStatusLogData.setDriverName(driverName);
-                            driveringStatusLogData.setLattitude(0.0);
-                            driveringStatusLogData.setLongitude(0.0);
-                            driveringStatusLogData.setCustomLocation("");
-                            driveringStatusLogData.setOrigin("");
-                            driveringStatusLogData.setOdometer(0.0);
-                            driveringStatusLogData.setEngineHour("0");
-                            driveringStatusLogData.setNote("");
-                            driveringStatusLogData.setIsVoilation(0L);
-                            driveringStatusLogData.setLogType("Login");
-                            driveringStatusLogData.setStatusId(dsLog.getStatusId());
-                            driveringStatusLogData.setIsReportGenerated(1L);
-                            driveringStatusLogData.setIsPreviousLog(0);
-                            sDebug = sDebug + "1-1,";
-                            driveringStatusLogData.setDateTime(String.valueOf(loginLog.get(i).getLoginDateTime()));
-                            driveringStatusLogData.setStatus("Login");
-                            driveringStatusLogData.setEmployeeStatus(employeeStatus);
-                            sDebug = sDebug + "1-2,";
-                            driveringStatusLogViewDto.add(driveringStatusLogData);
-                        }
-                    } catch (Exception var38) {
-                        var38.printStackTrace();
-                    }
-                }
+            /*
+             * Do NOT reset the selected range to 1..N.
+             * Preserve the statusId immediately before 'from' and repair only
+             * the sequence after that point.
+             *
+             * IMPORTANT:
+             * Do not call this API automatically on page refresh.
+             */
+            this.UpdateDriverSequenceId(driverId, from);
 
-                loginLog = this.lookupLoginLogDataOperation(from, to, driverId, "logoutDateTime");
-                sDebug = sDebug + " >> " + loginLog.size() + ",";
+            result.setResult("Updated");
+            result.setStatus(Result.SUCCESS);
+            result.setMessage("Driver sequence updated successfully.");
 
-                for (int i = 0; i < loginLog.size(); ++i) {
-                    try {
-                        if (loginLog.get(i).getLogoutDateTime() > 0L) {
-                            DriverStatusLog dsLog = this.driverStatusLogRepo.findAndViewDriverStatusLogById1(loginLog.get(i).get_id(), "Logout");
-                            driveringStatusLogData = new DriveringStatusLogViewDto();
-                            driveringStatusLogData.setDriverId(driverId);
-                            driveringStatusLogData.setDriverStatusId(loginLog.get(i).get_id());
-                            driveringStatusLogData.setDriverName(driverName);
-                            driveringStatusLogData.setLattitude(0.0);
-                            driveringStatusLogData.setLongitude(0.0);
-                            driveringStatusLogData.setCustomLocation("");
-                            driveringStatusLogData.setOrigin("");
-                            driveringStatusLogData.setOdometer(0.0);
-                            driveringStatusLogData.setEngineHour("0");
-                            driveringStatusLogData.setNote("");
-                            driveringStatusLogData.setIsVoilation(0L);
-                            driveringStatusLogData.setLogType("Logout");
-                            driveringStatusLogData.setStatusId(dsLog.getStatusId());
-                            driveringStatusLogData.setIsReportGenerated(1L);
-                            driveringStatusLogData.setIsPreviousLog(0);
-                            sDebug = sDebug + "2-1,";
-                            driveringStatusLogData.setDateTime(String.valueOf(loginLog.get(i).getLogoutDateTime()));
-                            driveringStatusLogData.setStatus("Logout");
-                            driveringStatusLogData.setEmployeeStatus(employeeStatus);
-                            sDebug = sDebug + "2-2,";
-                            driveringStatusLogViewDto.add(driveringStatusLogData);
-                        }
-                    } catch (Exception var37) {
-                        var37.printStackTrace();
-                    }
-                }
-
-                List<DriveringStatusViewDto> driveringStatusViewDto = new ArrayList<>();
-                Pageable pageableRequest = PageRequest.of(0, 1, Sort.by(new String[]{"utcDateTime"}).descending());
-                Query query = new Query(Criteria.where("driverId").is(driverId).and("utcDateTime").lte(from).and("isVoilation").is(0).and("isVisible").is(1));
-                query.limit(1);
-                query.with(pageableRequest);
-                List<DriveringStatusViewDto> driveringStatusViewDtoData = this.mongoTemplate.find(query, DriveringStatusViewDto.class, "drivering_status");
-                if (driveringStatusViewDtoData.size() > 0) {
-                    driveringStatusViewDtoData.get(0).setIsPreviousLog(1);
-                    driveringStatusLogData.setIsLogDelete(1);
-                    driveringStatusViewDto.add(driveringStatusViewDtoData.get(0));
-                }
-
-                driveringStatusViewDtoData = this.lookupDriverStatusDataOperation(from, to, driverId);
-
-                for (int i = 0; i < driveringStatusViewDtoData.size(); ++i) {
-                    driveringStatusViewDto.add(driveringStatusViewDtoData.get(i));
-                }
-
-                sDebug = sDebug + "List Size : " + driveringStatusViewDto.size() + "##,";
-
-                for (int i = 0; i < driveringStatusViewDto.size(); ++i) {
-                    try {
-                        sDebug = sDebug + "1,";
-                        DriverStatusLog dsLog = this.driverStatusLogRepo.findAndViewDriverStatusLogById(driveringStatusViewDto.get(i).get_id());
-                        sDebug = sDebug + "2,";
-                        driveringStatusLogData = new DriveringStatusLogViewDto();
-                        driveringStatusLogData.setVehicleId(driveringStatusViewDto.get(i).getVehicleId());
-                        driveringStatusLogData.setDriverId(driverId);
-                        driveringStatusLogData.setDriverStatusId(driveringStatusViewDto.get(i).get_id());
-                        driveringStatusLogData.setDriverName(driverName);
-                        sDebug = sDebug + "3,";
-                        driveringStatusLogData.setDateTime(String.valueOf(driveringStatusViewDto.get(i).getUtcDateTime()));
-                        driveringStatusLogData.setUtcDateTime(driveringStatusViewDto.get(i).getUtcDateTime());
-                        driveringStatusLogData.setStatus(driveringStatusViewDto.get(i).getStatus());
-                        sDebug = sDebug + "3-1,";
-                        driveringStatusLogData.setLattitude(driveringStatusViewDto.get(i).getLattitude());
-                        sDebug = sDebug + "3-2,";
-                        driveringStatusLogData.setLongitude(driveringStatusViewDto.get(i).getLongitude());
-                        sDebug = sDebug + "3-3,";
-                        driveringStatusLogData.setCustomLocation(driveringStatusViewDto.get(i).getCustomLocation());
-                        sDebug = sDebug + "3-4,";
-                        driveringStatusLogData.setOrigin(driveringStatusViewDto.get(i).getOrigin());
-                        sDebug = sDebug + "3-5,";
-                        driveringStatusLogData.setOdometer(Double.parseDouble(df.format(driveringStatusViewDto.get(i).getOdometer())));
-                        sDebug = sDebug + "3-6,";
-
-                        try {
-                            driveringStatusLogData.setEngineHour(df.format(Double.parseDouble(driveringStatusViewDto.get(i).getEngineHour())));
-                        } catch (Exception var35) {
-                            driveringStatusLogData.setEngineHour("0.00");
-                            var35.printStackTrace();
-                        }
-
-                        driveringStatusLogData.setNote(driveringStatusViewDto.get(i).getNote());
-                        sDebug = sDebug + "3-7,";
-                        driveringStatusLogData.setIsVoilation((long) driveringStatusViewDto.get(i).getIsVoilation().intValue());
-                        driveringStatusLogData.setLogType(driveringStatusViewDto.get(i).getLogType());
-                        sDebug = sDebug + "3-8,";
-                        driveringStatusLogData.setEmployeeStatus(employeeStatus);
-
-                        try {
-                            driveringStatusLogData.setStatusId(dsLog.getStatusId());
-                        } catch (Exception var34) {
-                            var34.printStackTrace();
-                        }
-
-                        sDebug = sDebug + "4,";
-                        driveringStatusLogData.setRemainingWeeklyTime(driveringStatusViewDto.get(i).getRemainingWeeklyTime());
-                        driveringStatusLogData.setRemainingDutyTime(driveringStatusViewDto.get(i).getRemainingDutyTime());
-                        driveringStatusLogData.setRemainingDriveTime(driveringStatusViewDto.get(i).getRemainingDriveTime());
-                        driveringStatusLogData.setRemainingSleepTime(driveringStatusViewDto.get(i).getRemainingSleepTime());
-                        driveringStatusLogData.setShift(driveringStatusViewDto.get(i).getShift());
-                        driveringStatusLogData.setDays(driveringStatusViewDto.get(i).getDays());
-                        driveringStatusLogData.setIsReportGenerated((long) driveringStatusViewDto.get(i).getIsReportGenerated());
-                        driveringStatusLogData.setIsPreviousLog(driveringStatusViewDto.get(i).getIsPreviousLog());
-                        driveringStatusLogData.setIsLogDelete(1);
-                        driveringStatusLogViewDto.add(driveringStatusLogData);
-                        sDebug = sDebug + "5,";
-                    } catch (Exception var36) {
-                        var36.printStackTrace();
-                    }
-                }
-
-                List<CertifiedLogViewDto> certifiedLogViewDto = this.lookupCertifiedLogDataOperation(from, to, driverId);
-                sDebug = sDebug + "Certified : " + certifiedLogViewDto.size() + ",";
-
-                for (int i = 0; i < certifiedLogViewDto.size(); ++i) {
-                    try {
-                        sDebug = sDebug + "6,";
-                        DriverStatusLog dsLog = this.driverStatusLogRepo.findAndViewDriverStatusLogById(certifiedLogViewDto.get(i).get_id());
-                        sDebug = sDebug + "7,";
-                        driveringStatusLogData = new DriveringStatusLogViewDto();
-                        driveringStatusLogData.setVehicleId(certifiedLogViewDto.get(i).getVehicleId());
-                        driveringStatusLogData.setDriverId(driverId);
-                        driveringStatusLogData.setDriverStatusId(certifiedLogViewDto.get(i).get_id());
-                        driveringStatusLogData.setDriverName(driverName);
-                        sDebug = sDebug + "8,";
-                        driveringStatusLogData.setDateTime(String.valueOf(certifiedLogViewDto.get(i).getLCertifiedDate()));
-                        driveringStatusLogData.setStatus("Certified");
-                        sDebug = sDebug + "9,";
-                        driveringStatusLogData.setLattitude(0.0);
-                        driveringStatusLogData.setLongitude(0.0);
-                        driveringStatusLogData.setCustomLocation("");
-                        driveringStatusLogData.setOrigin("");
-                        driveringStatusLogData.setOdometer(0.0);
-                        driveringStatusLogData.setEngineHour("0");
-                        driveringStatusLogData.setNote("");
-                        driveringStatusLogData.setIsVoilation(0L);
-                        driveringStatusLogData.setLogType("Certified Log");
-                        driveringStatusLogData.setEmployeeStatus(employeeStatus);
-                        driveringStatusLogData.setStatusId(dsLog.getStatusId());
-                        driveringStatusLogData.setIsReportGenerated(1L);
-                        driveringStatusLogData.setIsPreviousLog(0);
-                        driveringStatusLogViewDto.add(driveringStatusLogData);
-                        sDebug = sDebug + "10,";
-                    } catch (Exception var33) {
-                        var33.printStackTrace();
-                    }
-                }
-
-                driveringStatusLogViewDto.sort(Comparator.comparingLong(dto -> Long.parseLong(dto.getDateTime())));
-
-                for (int i = 0; i < driveringStatusLogViewDto.size(); ++i) {
-                    long newStatusId = (long) (i + 1);
-                    DriveringStatusLogViewDto log = driveringStatusLogViewDto.get(i);
-                    sDebug = sDebug + "status ID: " + newStatusId + " :: " + log.getStatus() + " :: " + log.getDriverStatusId() + "\n";
-                    Query updateQuery = new Query(Criteria.where("logDataId").is(log.getDriverStatusId()).and("driverId").is(driverId));
-                    Update update = new Update();
-                    update.set("statusId", newStatusId);
-                    update.set("dateTime", log.getUtcDateTime());
-                    this.mongoTemplate.updateFirst(updateQuery, update, DriverStatusLog.class);
-                }
-
-                result.setResult("Updated");
-                result.setStatus(Result.SUCCESS);
-                result.setMessage("Driver Status Information Send Successfully" + sDebug);
-            } else {
-                result.setResult(null);
-                result.setStatus(Result.FAIL);
-                result.setMessage("Invalid Request." + sDebug);
-            }
-        } catch (Exception var39) {
+        } catch (Exception e) {
+            result.setResult(null);
             result.setStatus(Result.FAIL);
-            result.setMessage(var39.getLocalizedMessage() + sDebug);
+            result.setMessage(e.getLocalizedMessage());
         }
 
         return result;
@@ -12197,4 +13636,66 @@ public class DispatchServiceImpl implements DispatchService {
 
         return result;
     }
+
+    private void populateCdlSnapshot(DriveringStatus driveringStatus) {
+        try {
+            if (driveringStatus == null || driveringStatus.getDriverId() <= 0L) {
+                return;
+            }
+            EmployeeMaster empInfo = this.employeeMasterRepo.findByEmployeeId((int) driveringStatus.getDriverId());
+            if (empInfo == null) {
+                return;
+            }
+            driveringStatus.setCdlNo(empInfo.getCdlNo());
+            if (empInfo.getCdlStateId() > 0L) {
+                int stateId = (int) empInfo.getCdlStateId();
+                driveringStatus.setCdlStateId(stateId);
+                StateMaster stateInfo = this.stateMasterRepo.findByStateId(stateId);
+                if (stateInfo != null) {
+                    driveringStatus.setCdlStateCode(stateInfo.getStateCode());
+                }
+            }
+            if (empInfo.getCdlCountryId() > 0L) {
+                driveringStatus.setCdlCountryId((int) empInfo.getCdlCountryId());
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+    }
+
+    private void invalidateCertifiedLogForDate(long driverId, long utcDateTime) {
+        try {
+            java.time.Instant instantForDate = java.time.Instant.ofEpochMilli(utcDateTime);
+            java.time.ZoneId zone = java.time.ZoneId.systemDefault();
+            java.time.LocalDate date = instantForDate.atZone(zone).toLocalDate();
+            java.time.ZonedDateTime startOfDay = date.atStartOfDay(zone);
+            java.time.ZonedDateTime endOfDay = startOfDay.plusDays(1L).minusNanos(1L);
+            long from = startOfDay.toInstant().toEpochMilli();
+            long to = endOfDay.toInstant().toEpochMilli();
+
+            this.certifiedLogRepo.deleteAllCertifiedLogByDriverIdAndDate(driverId, from, to);
+
+            // Soft delete "Certified" logs from DriveringStatus
+            org.springframework.data.mongodb.core.query.Query query1 = new org.springframework.data.mongodb.core.query.Query(
+                    org.springframework.data.mongodb.core.query.Criteria.where("driverId").is(driverId)
+                            .and("status").is("Certified")
+                            .and("utcDateTime").gte(from).lte(to));
+            org.springframework.data.mongodb.core.query.Update update1 = new org.springframework.data.mongodb.core.query.Update();
+            update1.set("isVisible", 0);
+            this.mongoTemplate.updateMulti(query1, update1, DriveringStatus.class);
+
+            // Soft delete "Certified" logs from DriverStatusLog
+            org.springframework.data.mongodb.core.query.Query query2 = new org.springframework.data.mongodb.core.query.Query(
+                    org.springframework.data.mongodb.core.query.Criteria.where("driverId").is(driverId)
+                            .and("status").is("Certified")
+                            .and("dateTime").gte(from).lte(to));
+            org.springframework.data.mongodb.core.query.Update update2 = new org.springframework.data.mongodb.core.query.Update();
+            update2.set("isVisible", 0);
+            this.mongoTemplate.updateMulti(query2, update2, DriverStatusLog.class);
+
+        } catch (Exception ex) {
+            ex.printStackTrace();
+        }
+    }
+
 }

@@ -741,6 +741,34 @@ public class MasterServiceImpl implements MasterService {
                return result;
             }
          }
+         EmployeeMaster oldEmp = this.employeeMasterRepo.findByEmployeeId(employeeInfo.getEmployeeId());
+         if (oldEmp != null) {
+            boolean cdlChanged = false;
+            if (oldEmp.getCdlNo() == null && employeeInfo.getCdlNo() != null) cdlChanged = true;
+            else if (oldEmp.getCdlNo() != null && !oldEmp.getCdlNo().equals(employeeInfo.getCdlNo())) cdlChanged = true;
+            else if (oldEmp.getCdlStateId() != employeeInfo.getCdlStateId()) cdlChanged = true;
+            else if (oldEmp.getCdlCountryId() != employeeInfo.getCdlCountryId()) cdlChanged = true;
+
+            if (cdlChanged) {
+               Query logQuery = new Query(Criteria.where("driverId").is((long) employeeInfo.getEmployeeId()));
+               logQuery.addCriteria(new Criteria().orOperator(
+                       Criteria.where("cdlNo").exists(false),
+                       Criteria.where("cdlNo").is(null),
+                       Criteria.where("cdlNo").is("")
+               ));
+
+               Update logUpdate = new Update();
+               if (oldEmp.getCdlNo() != null) {
+                   logUpdate.set("cdlNo", oldEmp.getCdlNo());
+               }
+               logUpdate.set("cdlStateId", oldEmp.getCdlStateId());
+               logUpdate.set("cdlCountryId", oldEmp.getCdlCountryId());
+
+               this.mongoTemplate.updateMulti(logQuery, logUpdate, "drivering_status");
+               this.mongoTemplate.updateMulti(logQuery, logUpdate, "driver_status_log");
+               this.mongoTemplate.updateMulti(logQuery, logUpdate, "certified_log");
+            }
+         }
 
          DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd");
          LocalDate cdlExpiryDate = LocalDate.parse(employeeInfo.getCdlExpiryDate(), formatter);
@@ -2952,10 +2980,10 @@ public class MasterServiceImpl implements MasterService {
          }
 
          if (userMaster.getUserTypeId() == 3L) {
-            boolean exists = this.userMasterRepo.existsByUserTypeId(3L);
-            if (exists) {
+            long supportCount = this.userMasterRepo.countByClientIdAndUserTypeId(userMaster.getClientId(), 3L);
+            if (supportCount >= 2L) {
                result.setStatus(Result.FAIL);
-               result.setMessage("Support account already exists");
+               result.setMessage("Maximum 2 Support Personnel accounts are allowed per company.");
                return result;
             }
          }

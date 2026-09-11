@@ -13,6 +13,9 @@ public interface UserMasterRepo extends MongoRepository<UserMaster, String> {
    @Query("{ 'userId' : ?0 }")
    UserMaster findByUserId(Integer userId);
 
+   @Query("{ 'email' : ?0 }")
+   UserMaster findByEmail(String email);
+
    @Query("{ 'userId' : ?0}")
    List<UserMaster> findAndViewByUserId(Integer userId);
 
@@ -36,4 +39,6 @@ public interface UserMasterRepo extends MongoRepository<UserMaster, String> {
    boolean existsByEmail(String email);
 
    boolean existsByUserTypeId(long userTypeId);
+
+   long countByClientIdAndUserTypeId(long clientId, long userTypeId);
 }

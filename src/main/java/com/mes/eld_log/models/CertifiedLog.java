@@ -25,6 +25,7 @@ public class CertifiedLog implements Serializable {
    private String certifiedSignature;
    private long addedTimestamp;
    private long updatedTimestamp;
+   private Boolean isCertified;
 
    @Override
    public boolean equals(final Object o) {
@@ -273,5 +274,13 @@ public class CertifiedLog implements Serializable {
 
    public void setUpdatedTimestamp(final long updatedTimestamp) {
       this.updatedTimestamp = updatedTimestamp;
+   }
+
+   public Boolean getIsCertified() {
+      return this.isCertified;
+   }
+
+   public void setIsCertified(final Boolean isCertified) {
+      this.isCertified = isCertified;
    }
 }

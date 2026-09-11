@@ -20,6 +20,9 @@ public class DriveringStatusViewDto {
    private String driverName;
    @JsonProperty("cdlNo")
    private String cdlNo;
+    private Integer cdlStateId;
+    private Integer cdlCountryId;
+    private String cdlStateCode;
    @JsonProperty("countryName")
    private String countryName;
    @JsonProperty("stateName")
@@ -2341,4 +2344,24 @@ public class DriveringStatusViewDto {
          + this.getIsPreviousLog()
          + ")";
    }
+
+    public Integer getCdlStateId() {
+        return this.cdlStateId;
+    }
+    public void setCdlStateId(Integer cdlStateId) {
+        this.cdlStateId = cdlStateId;
+    }
+    public Integer getCdlCountryId() {
+        return this.cdlCountryId;
+    }
+    public void setCdlCountryId(Integer cdlCountryId) {
+        this.cdlCountryId = cdlCountryId;
+    }
+    public String getCdlStateCode() {
+        return this.cdlStateCode;
+    }
+    public void setCdlStateCode(String cdlStateCode) {
+        this.cdlStateCode = cdlStateCode;
+    }
+
 }

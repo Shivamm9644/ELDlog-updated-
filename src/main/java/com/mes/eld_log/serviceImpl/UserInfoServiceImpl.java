@@ -115,6 +115,8 @@ public class UserInfoServiceImpl implements UserDetailsService, UserInfoService 
     LoginLogRepo loginLogRepo;
     @Autowired
     private JavaMailSender javaMailSender;
+    @Autowired
+    private com.mes.eld_log.security.TokenUtil tokenUtil;
 
     @Autowired
     public UserInfoServiceImpl(MongoTemplate mongoTemplate) {
@@ -122,7 +124,7 @@ public class UserInfoServiceImpl implements UserDetailsService, UserInfoService 
     }
 
     @Override
-    public ResultWrapper<EmployeeMasterCRUDDto> Login(UserLoginDto userLoginDto, String token) {
+    public ResultWrapper<EmployeeMasterCRUDDto> Login(UserLoginDto userLoginDto) {
         String sDebug = "";
         ResultWrapper<EmployeeMasterCRUDDto> result = new ResultWrapper<>();
 
@@ -195,23 +197,31 @@ public class UserInfoServiceImpl implements UserDetailsService, UserInfoService 
                             e.printStackTrace();
                         }
 
-                        if (currentDriverStatus != null &&
-                            (currentDriverStatus.equalsIgnoreCase("OnDrive") ||
-                             currentDriverStatus.equalsIgnoreCase("Drive") ||
-                             currentDriverStatus.equalsIgnoreCase("On Drive") ||
-                             currentDriverStatus.equalsIgnoreCase("ON_DRIVE"))) {
+                        if (currentDriverStatus != null
+                                && (currentDriverStatus.equalsIgnoreCase("OnDrive")
+                                || currentDriverStatus.equalsIgnoreCase("Drive")
+                                || currentDriverStatus.equalsIgnoreCase("On Drive")
+                                || currentDriverStatus.equalsIgnoreCase("ON_DRIVE"))) {
                             result.setResult(null);
                             result.setStatus(Result.FAIL);
                             result.setMessage("Driver is currently ON DRIVE. Login is not allowed while driving.");
                             return result;
                         }
 
+                        String jwtToken = tokenUtil.generateToken(
+                            new org.springframework.security.authentication.UsernamePasswordAuthenticationToken(
+                                email, null, java.util.Collections.singletonList(
+                                    new org.springframework.security.core.authority.SimpleGrantedAuthority("ROLE_USER")
+                                )
+                            )
+                        );
+
                         if (userLoginDto.getIsCoDriver() != null && !userLoginDto.getIsCoDriver().equals("")) {
                             Query query = new Query();
                             query.addCriteria(Criteria.where("employeeId").is(login.get(0).getEmployeeId()));
                             Update update = new Update();
                             update.set("isCoDriver", userLoginDto.getIsCoDriver());
-                            update.set("tokenNo", token);
+                            update.set("tokenNo", jwtToken);
                             update.set("loginDateTime", instant.toEpochMilli());
                             this.mongoTemplate.findAndModify(query, update, Login.class);
                         } else {
@@ -219,7 +229,7 @@ public class UserInfoServiceImpl implements UserDetailsService, UserInfoService 
                             query.addCriteria(Criteria.where("employeeId").is(login.get(0).getEmployeeId()));
                             Update update = new Update();
                             update.set("isCoDriver", "false");
-                            update.set("tokenNo", token);
+                            update.set("tokenNo", jwtToken);
                             update.set("loginDateTime", instant.toEpochMilli());
                             this.mongoTemplate.findAndModify(query, update, Login.class);
                         }
@@ -369,38 +379,83 @@ public class UserInfoServiceImpl implements UserDetailsService, UserInfoService 
                                 }
 
                                 EmployeeMaster empDetails = this.employeeMasterRepo.findByEmployeeId((int) driveringStatusViewDto.get(i).getDriverId());
-                                driverName = empDetails.getFirstName() + " " + empDetails.getLastName();
+                                driverName = (empDetails != null) ? empDetails.getFirstName() + " " + empDetails.getLastName() : "";
                                 driveringStatusViewDto.get(i).setDriverName(driverName);
-                                driveringStatusViewDto.get(i).setMobileNo(empDetails.getMobileNo());
-                                driveringStatusViewDto.get(i).setEmail(empDetails.getEmail());
-                                driveringStatusViewDto.get(i).setCompanyDriverId(empDetails.getUsername());
-                                driveringStatusViewDto.get(i).setCdlNo(empDetails.getCdlNo());
-                                CountryMaster countryInfo = this.countryMasterRepo.findByCountryId((int) empDetails.getCdlCountryId());
-                                driveringStatusViewDto.get(i).setCountryName(countryInfo.getCountryName());
-                                StateMaster stateInfo = this.stateMasterRepo.findByStateId((int) empDetails.getCdlStateId());
-                                driveringStatusViewDto.get(i).setStateName(stateInfo.getStateName());
-                                driveringStatusViewDto.get(i).setExempt(empDetails.getExempt());
+                                if (empDetails != null) {
+                                    driveringStatusViewDto.get(i).setMobileNo(empDetails.getMobileNo());
+                                    driveringStatusViewDto.get(i).setEmail(empDetails.getEmail());
+                                    driveringStatusViewDto.get(i).setCompanyDriverId(empDetails.getUsername());
+                                }
+                                StateMaster stateInfo = null;
+
+                                // CDL Number
+                                String cdlNo = driveringStatusViewDto.get(i).getCdlNo();
+                                if (cdlNo == null || cdlNo.isEmpty()) {
+                                    cdlNo = (empDetails != null) ? empDetails.getCdlNo() : "";
+                                }
+                                driveringStatusViewDto.get(i).setCdlNo(cdlNo);
+
+                                // CDL State
+                                Integer cdlStateId = driveringStatusViewDto.get(i).getCdlStateId();
+                                if (cdlStateId == null || cdlStateId <= 0) {
+                                    cdlStateId = (empDetails != null) ? (int) empDetails.getCdlStateId() : 0;
+                                }
+                                if (cdlStateId > 0) {
+                                    stateInfo = this.stateMasterRepo.findByStateId(cdlStateId);
+                                    if (stateInfo != null) {
+                                        driveringStatusViewDto.get(i).setStateName(stateInfo.getStateName());
+                                        driveringStatusViewDto.get(i).setCdlStateCode(stateInfo.getStateCode());
+                                        driveringStatusViewDto.get(i).setCdlStateId(cdlStateId);
+                                    }
+                                }
+
+                                // CDL Country
+                                Integer cdlCountryId = driveringStatusViewDto.get(i).getCdlCountryId();
+                                if (cdlCountryId == null || cdlCountryId <= 0) {
+                                    cdlCountryId = (empDetails != null) ? (int) empDetails.getCdlCountryId() : 0;
+                                }
+                                if (cdlCountryId > 0) {
+                                    CountryMaster countryInfo = this.countryMasterRepo.findByCountryId(cdlCountryId);
+                                    if (countryInfo != null) {
+                                        driveringStatusViewDto.get(i).setCountryName(countryInfo.getCountryName());
+                                        driveringStatusViewDto.get(i).setCdlCountryId(cdlCountryId);
+                                    }
+                                }
+                                driveringStatusViewDto.get(i).setExempt(empDetails != null ? empDetails.getExempt() : "");
                                 VehicleMaster vehcileInfo = null;
                                 if (driveringStatusViewDto.get(i).getVehicleId() > 0L) {
                                     vehcileInfo = this.vehicleMasterRepo.findByVehicleId((int) driveringStatusViewDto.get(i).getVehicleId());
-                                    driveringStatusViewDto.get(i).setTruckNo(vehcileInfo.getVehicleNo());
-                                    driveringStatusViewDto.get(i).setVin(vehcileInfo.getVin());
+                                    if (vehcileInfo != null) {
+                                        driveringStatusViewDto.get(i).setTruckNo(vehcileInfo.getVehicleNo());
+                                        driveringStatusViewDto.get(i).setVin(vehcileInfo.getVin());
+                                    } else {
+                                        driveringStatusViewDto.get(i).setTruckNo("");
+                                        driveringStatusViewDto.get(i).setVin("");
+                                    }
                                 } else {
                                     driveringStatusViewDto.get(i).setTruckNo("");
                                     driveringStatusViewDto.get(i).setVin("");
                                 }
 
-                                mainTerminal = this.mainTerminalMasterRepo.findByMainTerminalId((int) empDetails.getMainTerminalId());
-                                driveringStatusViewDto.get(i).setMainTerminalName(mainTerminal.getMainTerminalName());
-                                if (mainTerminal.getStateId() > 0L) {
-                                    stateInfo = this.stateMasterRepo.findByStateId((int) mainTerminal.getStateId());
-                                    timezoneName = stateInfo.getTimeZone();
-                                    timezoneOffSet = stateInfo.getTimezoneOffSet();
+                                if (empDetails != null) {
+                                    mainTerminal = this.mainTerminalMasterRepo.findByMainTerminalId((int) empDetails.getMainTerminalId());
+                                    if (mainTerminal != null) {
+                                        driveringStatusViewDto.get(i).setMainTerminalName(mainTerminal.getMainTerminalName());
+                                        if (mainTerminal.getStateId() > 0L) {
+                                            stateInfo = this.stateMasterRepo.findByStateId((int) mainTerminal.getStateId());
+                                            if (stateInfo != null) {
+                                                timezoneName = stateInfo.getTimeZone();
+                                                timezoneOffSet = stateInfo.getTimezoneOffSet();
+                                            }
+                                        }
+                                    }
                                 }
 
-                                CycleUsa cycleUsa = this.cycleUsaRepo.findByCycleUsaId((int) empDetails.getCycleUsaId());
-                                driveringStatusViewDto.get(i).setCycleUsaName(cycleUsa.getCycleUsaName());
-                                if (empDetails.getClientId() > 0L) {
+                                CycleUsa cycleUsa = (empDetails != null) ? this.cycleUsaRepo.findByCycleUsaId((int) empDetails.getCycleUsaId()) : null;
+                                if (cycleUsa != null) {
+                                    driveringStatusViewDto.get(i).setCycleUsaName(cycleUsa.getCycleUsaName());
+                                }
+                                if (empDetails != null && empDetails.getClientId() > 0L) {
                                     ClientMaster clientInfo = this.clientMasterRepo.findByClientId((int) empDetails.getClientId());
                                     driveringStatusViewDto.get(i).setCompanyName(clientInfo.getClientName());
                                     driveringStatusViewDto.get(i).setDotNo(clientInfo.getDotNo());
@@ -568,7 +623,7 @@ public class UserInfoServiceImpl implements UserDetailsService, UserInfoService 
                         empInfo.setLoginLogoutLog(loginLogoutLogViewDto);
                         empInfo.setSplitLog(splitLogData);
                         result.setResult(empInfo);
-                        result.setToken(token);
+                        result.setToken(jwtToken);
                         result.setStatus(Result.SUCCESS);
                         result.setMessage("Logged In Successfully" + sDebug);
                     } else {
@@ -726,35 +781,77 @@ public class UserInfoServiceImpl implements UserDetailsService, UserInfoService 
                     if (driveringStatusViewDto.get(i).getLogType().equals("System Generated")) {
                         driveringStatusViewDto.get(i).setIsSystemGenerated(1);
                     }
-
                     EmployeeMaster empDetails = this.employeeMasterRepo.findByEmployeeId((int) driveringStatusViewDto.get(i).getDriverId());
-                    driverName = empDetails.getFirstName() + " " + empDetails.getLastName();
+                    driverName = (empDetails != null) ? empDetails.getFirstName() + " " + empDetails.getLastName() : "";
                     driveringStatusViewDto.get(i).setDriverName(driverName);
-                    driveringStatusViewDto.get(i).setMobileNo(empDetails.getMobileNo());
-                    driveringStatusViewDto.get(i).setEmail(empDetails.getEmail());
-                    driveringStatusViewDto.get(i).setCompanyDriverId(empDetails.getUsername());
-                    driveringStatusViewDto.get(i).setCdlNo(empDetails.getCdlNo());
-                    CountryMaster countryInfo = this.countryMasterRepo.findByCountryId((int) empDetails.getCdlCountryId());
-                    driveringStatusViewDto.get(i).setCountryName(countryInfo.getCountryName());
-                    StateMaster stateInfo = this.stateMasterRepo.findByStateId((int) empDetails.getCdlStateId());
-                    driveringStatusViewDto.get(i).setStateName(stateInfo.getStateName());
-                    driveringStatusViewDto.get(i).setExempt(empDetails.getExempt());
+                    if (empDetails != null) {
+                        driveringStatusViewDto.get(i).setMobileNo(empDetails.getMobileNo());
+                        driveringStatusViewDto.get(i).setEmail(empDetails.getEmail());
+                        driveringStatusViewDto.get(i).setCompanyDriverId(empDetails.getUsername());
+                    }
+                    StateMaster stateInfo = null;
+
+                    // CDL Number
+                    String cdlNo = driveringStatusViewDto.get(i).getCdlNo();
+                    if (cdlNo == null || cdlNo.isEmpty()) {
+                        cdlNo = (empDetails != null) ? empDetails.getCdlNo() : "";
+                    }
+                    driveringStatusViewDto.get(i).setCdlNo(cdlNo);
+
+                    // CDL State
+                    Integer cdlStateId = driveringStatusViewDto.get(i).getCdlStateId();
+                    if (cdlStateId == null || cdlStateId <= 0) {
+                        cdlStateId = (empDetails != null) ? (int) empDetails.getCdlStateId() : 0;
+                    }
+                    if (cdlStateId > 0) {
+                        stateInfo = this.stateMasterRepo.findByStateId(cdlStateId);
+                        if (stateInfo != null) {
+                            driveringStatusViewDto.get(i).setStateName(stateInfo.getStateName());
+                            driveringStatusViewDto.get(i).setCdlStateCode(stateInfo.getStateCode());
+                            driveringStatusViewDto.get(i).setCdlStateId(cdlStateId);
+                        }
+                    }
+
+                    // CDL Country
+                    Integer cdlCountryId = driveringStatusViewDto.get(i).getCdlCountryId();
+                    if (cdlCountryId == null || cdlCountryId <= 0) {
+                        cdlCountryId = (empDetails != null) ? (int) empDetails.getCdlCountryId() : 0;
+                    }
+                    if (cdlCountryId > 0) {
+                        CountryMaster countryInfo = this.countryMasterRepo.findByCountryId(cdlCountryId);
+                        if (countryInfo != null) {
+                            driveringStatusViewDto.get(i).setCountryName(countryInfo.getCountryName());
+                            driveringStatusViewDto.get(i).setCdlCountryId(cdlCountryId);
+                        }
+                    }
+                    driveringStatusViewDto.get(i).setExempt(empDetails != null ? empDetails.getExempt() : "");
                     VehicleMaster vehcileInfo = null;
                     if (driveringStatusViewDto.get(i).getVehicleId() > 0L) {
                         vehcileInfo = this.vehicleMasterRepo.findByVehicleId((int) driveringStatusViewDto.get(i).getVehicleId());
-                        driveringStatusViewDto.get(i).setTruckNo(vehcileInfo.getVehicleNo());
-                        driveringStatusViewDto.get(i).setVin(vehcileInfo.getVin());
+                        if (vehcileInfo != null) {
+                            driveringStatusViewDto.get(i).setTruckNo(vehcileInfo.getVehicleNo());
+                            driveringStatusViewDto.get(i).setVin(vehcileInfo.getVin());
+                        } else {
+                            driveringStatusViewDto.get(i).setTruckNo("");
+                            driveringStatusViewDto.get(i).setVin("");
+                        }
                     } else {
                         driveringStatusViewDto.get(i).setTruckNo("");
                         driveringStatusViewDto.get(i).setVin("");
                     }
 
-                    mainTerminal = this.mainTerminalMasterRepo.findByMainTerminalId((int) empDetails.getMainTerminalId());
-                    driveringStatusViewDto.get(i).setMainTerminalName(mainTerminal.getMainTerminalName());
-                    if (mainTerminal.getStateId() > 0L) {
-                        stateInfo = this.stateMasterRepo.findByStateId((int) mainTerminal.getStateId());
-                        timezoneName = stateInfo.getTimeZone();
-                        timezoneOffSet = stateInfo.getTimezoneOffSet();
+                    if (empDetails != null) {
+                        mainTerminal = this.mainTerminalMasterRepo.findByMainTerminalId((int) empDetails.getMainTerminalId());
+                        if (mainTerminal != null) {
+                            driveringStatusViewDto.get(i).setMainTerminalName(mainTerminal.getMainTerminalName());
+                            if (mainTerminal.getStateId() > 0L) {
+                                stateInfo = this.stateMasterRepo.findByStateId((int) mainTerminal.getStateId());
+                                if (stateInfo != null) {
+                                    timezoneName = stateInfo.getTimeZone();
+                                    timezoneOffSet = stateInfo.getTimezoneOffSet();
+                                }
+                            }
+                        }
                     }
 
                     CycleUsa cycleUsa = this.cycleUsaRepo.findByCycleUsaId((int) empDetails.getCycleUsaId());
@@ -1027,7 +1124,7 @@ public class UserInfoServiceImpl implements UserDetailsService, UserInfoService 
     }
 
     @Override
-    public ResultWrapper<EmployeeMasterCRUDDto> LoginByDate(UserLoginDto userLoginDto, String token) {
+    public ResultWrapper<EmployeeMasterCRUDDto> LoginByDate(UserLoginDto userLoginDto) {
         String sDebug = "";
         ResultWrapper<EmployeeMasterCRUDDto> result = new ResultWrapper<>();
 
@@ -1042,12 +1139,20 @@ public class UserInfoServiceImpl implements UserDetailsService, UserInfoService 
                 email = login.get(0).getEmail();
                 UserLoginDto loginData = this.loginRepo.GetLoginDataByEmail(email);
                 if (login.get(0).getLoginStatus().equals("false")) {
+                    String jwtToken = tokenUtil.generateToken(
+                        new org.springframework.security.authentication.UsernamePasswordAuthenticationToken(
+                            email, null, java.util.Collections.singletonList(
+                                new org.springframework.security.core.authority.SimpleGrantedAuthority("ROLE_USER")
+                            )
+                        )
+                    );
+
                     if (userLoginDto.getIsCoDriver() != null && !userLoginDto.getIsCoDriver().equals("")) {
                         Query query = new Query();
                         query.addCriteria(Criteria.where("employeeId").is(login.get(0).getEmployeeId()));
                         Update update = new Update();
                         update.set("isCoDriver", userLoginDto.getIsCoDriver());
-                        update.set("tokenNo", token);
+                        update.set("tokenNo", jwtToken);
                         update.set("loginDateTime", instant.toEpochMilli());
                         this.mongoTemplate.findAndModify(query, update, Login.class);
                     } else {
@@ -1055,7 +1160,7 @@ public class UserInfoServiceImpl implements UserDetailsService, UserInfoService 
                         query.addCriteria(Criteria.where("employeeId").is(login.get(0).getEmployeeId()));
                         Update update = new Update();
                         update.set("isCoDriver", "false");
-                        update.set("tokenNo", token);
+                        update.set("tokenNo", jwtToken);
                         update.set("loginDateTime", instant.toEpochMilli());
                         this.mongoTemplate.findAndModify(query, update, Login.class);
                     }
@@ -1110,22 +1215,59 @@ public class UserInfoServiceImpl implements UserDetailsService, UserInfoService 
 
                         try {
                             EmployeeMaster empDetails = this.employeeMasterRepo.findByEmployeeId((int) driveringStatusViewDto.get(i).getDriverId());
-                            driverName = empDetails.getFirstName() + " " + empDetails.getLastName();
+                            driverName = (empDetails != null) ? empDetails.getFirstName() + " " + empDetails.getLastName() : "";
                             driveringStatusViewDto.get(i).setDriverName(driverName);
-                            driveringStatusViewDto.get(i).setMobileNo(empDetails.getMobileNo());
-                            driveringStatusViewDto.get(i).setEmail(empDetails.getEmail());
-                            driveringStatusViewDto.get(i).setCompanyDriverId(empDetails.getUsername());
-                            driveringStatusViewDto.get(i).setCdlNo(empDetails.getCdlNo());
-                            CountryMaster countryInfo = this.countryMasterRepo.findByCountryId((int) empDetails.getCdlCountryId());
-                            driveringStatusViewDto.get(i).setCountryName(countryInfo.getCountryName());
-                            StateMaster stateInfo = this.stateMasterRepo.findByStateId((int) empDetails.getCdlStateId());
-                            driveringStatusViewDto.get(i).setStateName(stateInfo.getStateName());
-                            driveringStatusViewDto.get(i).setExempt(empDetails.getExempt());
+                            if (empDetails != null) {
+                                driveringStatusViewDto.get(i).setMobileNo(empDetails.getMobileNo());
+                                driveringStatusViewDto.get(i).setEmail(empDetails.getEmail());
+                                driveringStatusViewDto.get(i).setCompanyDriverId(empDetails.getUsername());
+                            }
+                            StateMaster stateInfo = null;
+
+                            // CDL Number
+                            String cdlNo = driveringStatusViewDto.get(i).getCdlNo();
+                            if (cdlNo == null || cdlNo.isEmpty()) {
+                                cdlNo = (empDetails != null) ? empDetails.getCdlNo() : "";
+                            }
+                            driveringStatusViewDto.get(i).setCdlNo(cdlNo);
+
+                            // CDL State
+                            Integer cdlStateId = driveringStatusViewDto.get(i).getCdlStateId();
+                            if (cdlStateId == null || cdlStateId <= 0) {
+                                cdlStateId = (empDetails != null) ? (int) empDetails.getCdlStateId() : 0;
+                            }
+                            if (cdlStateId > 0) {
+                                stateInfo = this.stateMasterRepo.findByStateId(cdlStateId);
+                                if (stateInfo != null) {
+                                    driveringStatusViewDto.get(i).setStateName(stateInfo.getStateName());
+                                    driveringStatusViewDto.get(i).setCdlStateCode(stateInfo.getStateCode());
+                                    driveringStatusViewDto.get(i).setCdlStateId(cdlStateId);
+                                }
+                            }
+
+                            // CDL Country
+                            Integer cdlCountryId = driveringStatusViewDto.get(i).getCdlCountryId();
+                            if (cdlCountryId == null || cdlCountryId <= 0) {
+                                cdlCountryId = (empDetails != null) ? (int) empDetails.getCdlCountryId() : 0;
+                            }
+                            if (cdlCountryId > 0) {
+                                CountryMaster countryInfo = this.countryMasterRepo.findByCountryId(cdlCountryId);
+                                if (countryInfo != null) {
+                                    driveringStatusViewDto.get(i).setCountryName(countryInfo.getCountryName());
+                                    driveringStatusViewDto.get(i).setCdlCountryId(cdlCountryId);
+                                }
+                            }
+                            driveringStatusViewDto.get(i).setExempt(empDetails != null ? empDetails.getExempt() : "");
                             VehicleMaster vehcileInfo = null;
                             if (driveringStatusViewDto.get(i).getVehicleId() > 0L) {
                                 vehcileInfo = this.vehicleMasterRepo.findByVehicleId((int) driveringStatusViewDto.get(i).getVehicleId());
-                                driveringStatusViewDto.get(i).setTruckNo(vehcileInfo.getVehicleNo());
-                                driveringStatusViewDto.get(i).setVin(vehcileInfo.getVin());
+                                if (vehcileInfo != null) {
+                                    driveringStatusViewDto.get(i).setTruckNo(vehcileInfo.getVehicleNo());
+                                    driveringStatusViewDto.get(i).setVin(vehcileInfo.getVin());
+                                } else {
+                                    driveringStatusViewDto.get(i).setTruckNo("");
+                                    driveringStatusViewDto.get(i).setVin("");
+                                }
                             } else {
                                 driveringStatusViewDto.get(i).setTruckNo("");
                                 driveringStatusViewDto.get(i).setVin("");
@@ -1221,7 +1363,7 @@ public class UserInfoServiceImpl implements UserDetailsService, UserInfoService 
                     empInfo.setDriverDvirLog(dvirDataViewDto);
                     empInfo.setDriverCertifiedLog(certifiedLogViewDto);
                     result.setResult(empInfo);
-                    result.setToken(token);
+                    result.setToken(jwtToken);
                     result.setStatus(Result.SUCCESS);
                     result.setMessage("Logged In Successfully");
                 } else {
@@ -1339,7 +1481,12 @@ public class UserInfoServiceImpl implements UserDetailsService, UserInfoService 
                     "remainingSleepTime",
                     "remainingLastSleepTime",
                     "identifier",
-                    "isSplit"
+                    "isSplit",
+                    "cdlNo",
+                    "cdlStateId",
+                    "cdlCountryId",
+                    "cdlStateCode",
+                    "isActive"
                 }
         )
                 .andExclude(new String[]{"_id"});
@@ -1350,7 +1497,7 @@ public class UserInfoServiceImpl implements UserDetailsService, UserInfoService 
     }
 
     @Override
-    public ResultWrapper<List<UserMasterViewDto>> LoginWeb(UserLoginDto userLoginDto, String token) {
+    public ResultWrapper<List<UserMasterViewDto>> LoginWeb(UserLoginDto userLoginDto) {
         String sDebug = "==>";
         ResultWrapper<List<UserMasterViewDto>> result = new ResultWrapper<>();
 
@@ -1471,8 +1618,16 @@ public class UserInfoServiceImpl implements UserDetailsService, UserInfoService 
                             userMaster.get(0).setClientName("");
                         }
 
+                        String jwtToken = tokenUtil.generateToken(
+                            new org.springframework.security.authentication.UsernamePasswordAuthenticationToken(
+                                email, null, java.util.Collections.singletonList(
+                                    new org.springframework.security.core.authority.SimpleGrantedAuthority("ROLE_USER")
+                                )
+                            )
+                        );
+
                         result.setResult(userMaster);
-                        result.setToken(token);
+                        result.setToken(jwtToken);
                         result.setStatus(Result.SUCCESS);
                         result.setMessage("Logged In Successfully" + sDebug);
                     } else {
@@ -1777,7 +1932,69 @@ public class UserInfoServiceImpl implements UserDetailsService, UserInfoService 
         return result;
     }
 
-    public UserDetails loadUserByUsername(String username) throws UsernameNotFoundException {
-        return null;
+    @Override
+    public UserDetails loadUserByUsername(String identifier) throws UsernameNotFoundException {
+        if (identifier == null || identifier.trim().isEmpty()) {
+            throw new UsernameNotFoundException("Username or email cannot be empty");
+        }
+
+        // 1. Check UserMaster by email
+        com.mes.eld_log.models.UserMaster userByEmail = this.userMasterRepo.findByEmail(identifier);
+        if (userByEmail != null) {
+            return new org.springframework.security.core.userdetails.User(
+                identifier,
+                "",
+                java.util.Collections.singletonList(new org.springframework.security.core.authority.SimpleGrantedAuthority("ROLE_USER"))
+            );
+        }
+
+        // 2. Check UserMaster by username
+        try {
+            Query umQuery = new Query(Criteria.where("username").is(identifier));
+            com.mes.eld_log.models.UserMaster userByUsername = this.mongoTemplate.findOne(umQuery, com.mes.eld_log.models.UserMaster.class, "user_master");
+            if (userByUsername != null) {
+                return new org.springframework.security.core.userdetails.User(
+                    identifier,
+                    "",
+                    java.util.Collections.singletonList(new org.springframework.security.core.authority.SimpleGrantedAuthority("ROLE_USER"))
+                );
+            }
+        } catch (Exception var7) {
+            // Ignore query error and continue search
+        }
+
+        // 3. Check EmployeeMaster by email
+        try {
+            com.mes.eld_log.models.EmployeeMaster empByEmail = this.employeeMasterRepo.findEmployeeByEmail(identifier);
+            if (empByEmail != null) {
+                return new org.springframework.security.core.userdetails.User(
+                    identifier,
+                    "",
+                    java.util.Collections.singletonList(new org.springframework.security.core.authority.SimpleGrantedAuthority("ROLE_USER"))
+                );
+            }
+        } catch (Exception var8) {
+            // Ignore query error and continue search
+        }
+
+        // 4. Check Login collection by email or username
+        try {
+            Query loginQuery = new Query(new Criteria().orOperator(
+                Criteria.where("email").is(identifier),
+                Criteria.where("username").is(identifier)
+            ));
+            com.mes.eld_log.models.Login loginRecord = this.mongoTemplate.findOne(loginQuery, com.mes.eld_log.models.Login.class, "login");
+            if (loginRecord != null) {
+                return new org.springframework.security.core.userdetails.User(
+                    identifier,
+                    "",
+                    java.util.Collections.singletonList(new org.springframework.security.core.authority.SimpleGrantedAuthority("ROLE_USER"))
+                );
+            }
+        } catch (Exception var9) {
+            // Ignore query error
+        }
+
+        throw new UsernameNotFoundException("User/Driver not found with identifier: " + identifier);
     }
 }

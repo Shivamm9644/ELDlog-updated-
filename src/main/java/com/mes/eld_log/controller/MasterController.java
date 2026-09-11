@@ -124,16 +124,22 @@ public class MasterController {
    }
 
    @PostMapping({"/add_employee"})
-   public ResponseEntity<ResultWrapper<EmployeeMaster>> AddEmployee(@Valid @RequestBody EmployeeMaster employeeMaster) throws UnsupportedEncodingException, JsonProcessingException {
-      System.out.println(" >>> 1");
-      System.out.println(" >>> 2");
+   public ResponseEntity<ResultWrapper<EmployeeMaster>> AddEmployee(@Valid @RequestBody EmployeeMaster employeeMaster, javax.servlet.http.HttpServletRequest request) throws UnsupportedEncodingException, JsonProcessingException {
+      UserMaster user = imobilityUtils.getLoggedInUser(request);
+      if (user != null && (user.getUserTypeId() == 2 || user.getUserTypeId() == 3)) {
+         employeeMaster.setClientId((int)user.getClientId());
+      }
       ResultWrapper<EmployeeMaster> result = null;
       result = this.masterService.AddEmployee(employeeMaster);
       return new ResponseEntity(result, HttpStatus.OK);
    }
 
    @PostMapping({"/view_employee"})
-   public ResponseEntity<ResultWrapper<List<EmployeeMasterViewDto>>> ViewEmployee(@Valid @RequestBody EmployeeMasterCRUDDto employeeMasterCRUDDto) throws UnsupportedEncodingException, JsonProcessingException {
+   public ResponseEntity<ResultWrapper<List<EmployeeMasterViewDto>>> ViewEmployee(@Valid @RequestBody EmployeeMasterCRUDDto employeeMasterCRUDDto, javax.servlet.http.HttpServletRequest request) throws UnsupportedEncodingException, JsonProcessingException {
+      UserMaster user = imobilityUtils.getLoggedInUser(request);
+      if (user != null && (user.getUserTypeId() == 2 || user.getUserTypeId() == 3)) {
+         employeeMasterCRUDDto.setClientId((long)user.getClientId());
+      }
       ResultWrapper<List<EmployeeMasterViewDto>> result = null;
       String tokenValid = "";
 
@@ -171,21 +177,31 @@ public class MasterController {
    }
 
    @PostMapping({"/delete_employee"})
-   public ResponseEntity<ResultWrapper<EmployeeMaster>> DeleteEmployee(@Valid @RequestBody EmployeeMasterCRUDDto employeeMasterCRUDDto) throws UnsupportedEncodingException, JsonProcessingException {
+   public ResponseEntity<ResultWrapper<EmployeeMaster>> DeleteEmployee(@Valid @RequestBody EmployeeMasterCRUDDto employeeMasterCRUDDto, javax.servlet.http.HttpServletRequest request) throws UnsupportedEncodingException, JsonProcessingException {
+      UserMaster user = imobilityUtils.getLoggedInUser(request);
+
       ResultWrapper<EmployeeMaster> result = null;
       result = this.masterService.DeleteEmployee(employeeMasterCRUDDto);
       return new ResponseEntity(result, HttpStatus.OK);
    }
 
    @PostMapping({"/update_employee"})
-   public ResponseEntity<ResultWrapper<EmployeeMaster>> UpdateEmployee(@Valid @RequestBody EmployeeMaster employeeMaster) throws UnsupportedEncodingException, JsonProcessingException {
+   public ResponseEntity<ResultWrapper<EmployeeMaster>> UpdateEmployee(@Valid @RequestBody EmployeeMaster employeeMaster, javax.servlet.http.HttpServletRequest request) throws UnsupportedEncodingException, JsonProcessingException {
+      UserMaster user = imobilityUtils.getLoggedInUser(request);
+      if (user != null && (user.getUserTypeId() == 2 || user.getUserTypeId() == 3)) {
+         employeeMaster.setClientId((int)user.getClientId());
+      }
       ResultWrapper<EmployeeMaster> result = null;
       result = this.masterService.UpdateEmployee(employeeMaster);
       return new ResponseEntity(result, HttpStatus.OK);
    }
 
    @PostMapping({"/update_employee_active_inactive"})
-   public ResponseEntity<ResultWrapper<String>> UpdateEmployeeActiveInactive(@Valid @RequestBody EmployeeMasterCRUDDto employeeMasterCRUDDto) throws UnsupportedEncodingException, JsonProcessingException {
+   public ResponseEntity<ResultWrapper<String>> UpdateEmployeeActiveInactive(@Valid @RequestBody EmployeeMasterCRUDDto employeeMasterCRUDDto, javax.servlet.http.HttpServletRequest request) throws UnsupportedEncodingException, JsonProcessingException {
+      UserMaster user = imobilityUtils.getLoggedInUser(request);
+      if (user != null && (user.getUserTypeId() == 2 || user.getUserTypeId() == 3)) {
+         employeeMasterCRUDDto.setClientId((long)user.getClientId());
+      }
       ResultWrapper<String> result = null;
       result = this.masterService.UpdateEmployeeActiveInactive(employeeMasterCRUDDto);
       return new ResponseEntity(result, HttpStatus.OK);
@@ -243,14 +259,25 @@ public class MasterController {
    }
 
    @PostMapping({"/add_vehicle"})
-   public ResponseEntity<ResultWrapper<VehicleMaster>> AddVehicle(@Valid @RequestBody VehicleMaster vehicleMaster) throws UnsupportedEncodingException, JsonProcessingException {
+   public ResponseEntity<ResultWrapper<VehicleMaster>> AddVehicle(@Valid @RequestBody VehicleMaster vehicleMaster, javax.servlet.http.HttpServletRequest request) throws UnsupportedEncodingException, JsonProcessingException {
+      UserMaster user = imobilityUtils.getLoggedInUser(request);
+      if (user != null && user.getUserTypeId() == 3) {
+         ResultWrapper<VehicleMaster> result = new ResultWrapper<>();
+         result.setStatus(com.mes.eld_log.results.Result.FAIL);
+         result.setMessage("Unauthorized: Support Personnel cannot perform this action.");
+         return new ResponseEntity(result, HttpStatus.FORBIDDEN);
+      }
       ResultWrapper<VehicleMaster> result = null;
       result = this.masterService.AddVehicle(vehicleMaster);
       return new ResponseEntity(result, HttpStatus.OK);
    }
 
    @PostMapping({"/view_vehicle"})
-   public ResponseEntity<ResultWrapper<List<VehicleMasterViewDto>>> ViewVehicle(@Valid @RequestBody VehicleMasterCRUDDto vehicleMasterCRUDDto) throws UnsupportedEncodingException, JsonProcessingException {
+   public ResponseEntity<ResultWrapper<List<VehicleMasterViewDto>>> ViewVehicle(@Valid @RequestBody VehicleMasterCRUDDto vehicleMasterCRUDDto, javax.servlet.http.HttpServletRequest request) throws UnsupportedEncodingException, JsonProcessingException {
+      UserMaster user = imobilityUtils.getLoggedInUser(request);
+      if (user != null && (user.getUserTypeId() == 2 || user.getUserTypeId() == 3)) {
+         vehicleMasterCRUDDto.setClientId((long)user.getClientId());
+      }
       ResultWrapper<List<VehicleMasterViewDto>> result = null;
       String tokenValid = "";
 
@@ -265,7 +292,11 @@ public class MasterController {
    }
 
    @PostMapping({"/view_active_vehicle"})
-   public ResponseEntity<ResultWrapper<List<VehicleMasterViewDto>>> ViewActiveVehicle(@Valid @RequestBody VehicleMasterCRUDDto vehicleMasterCRUDDto) throws UnsupportedEncodingException, JsonProcessingException {
+   public ResponseEntity<ResultWrapper<List<VehicleMasterViewDto>>> ViewActiveVehicle(@Valid @RequestBody VehicleMasterCRUDDto vehicleMasterCRUDDto, javax.servlet.http.HttpServletRequest request) throws UnsupportedEncodingException, JsonProcessingException {
+      UserMaster user = imobilityUtils.getLoggedInUser(request);
+      if (user != null && (user.getUserTypeId() == 2 || user.getUserTypeId() == 3)) {
+         vehicleMasterCRUDDto.setClientId((long)user.getClientId());
+      }
       ResultWrapper<List<VehicleMasterViewDto>> result = null;
       String tokenValid = "";
 
@@ -280,14 +311,28 @@ public class MasterController {
    }
 
    @PostMapping({"/delete_vehicle"})
-   public ResponseEntity<ResultWrapper<VehicleMaster>> DeleteVehicle(@Valid @RequestBody VehicleMasterCRUDDto vehicleMasterCRUDDto) throws UnsupportedEncodingException, JsonProcessingException {
+   public ResponseEntity<ResultWrapper<VehicleMaster>> DeleteVehicle(@Valid @RequestBody VehicleMasterCRUDDto vehicleMasterCRUDDto, javax.servlet.http.HttpServletRequest request) throws UnsupportedEncodingException, JsonProcessingException {
+      UserMaster user = imobilityUtils.getLoggedInUser(request);
+      if (user != null && user.getUserTypeId() == 3) {
+         ResultWrapper<VehicleMaster> result = new ResultWrapper<>();
+         result.setStatus(com.mes.eld_log.results.Result.FAIL);
+         result.setMessage("Unauthorized: Support Personnel cannot perform this action.");
+         return new ResponseEntity(result, HttpStatus.FORBIDDEN);
+      }
       ResultWrapper<VehicleMaster> result = null;
       result = this.masterService.DeleteVehicle(vehicleMasterCRUDDto);
       return new ResponseEntity(result, HttpStatus.OK);
    }
 
    @PostMapping({"/update_vehicle"})
-   public ResponseEntity<ResultWrapper<VehicleMaster>> UpdateVehicle(@Valid @RequestBody VehicleMaster vehicleMaster) throws UnsupportedEncodingException, JsonProcessingException {
+   public ResponseEntity<ResultWrapper<VehicleMaster>> UpdateVehicle(@Valid @RequestBody VehicleMaster vehicleMaster, javax.servlet.http.HttpServletRequest request) throws UnsupportedEncodingException, JsonProcessingException {
+      UserMaster user = imobilityUtils.getLoggedInUser(request);
+      if (user != null && user.getUserTypeId() == 3) {
+         ResultWrapper<VehicleMaster> result = new ResultWrapper<>();
+         result.setStatus(com.mes.eld_log.results.Result.FAIL);
+         result.setMessage("Unauthorized: Support Personnel cannot perform this action.");
+         return new ResponseEntity(result, HttpStatus.FORBIDDEN);
+      }
       ResultWrapper<VehicleMaster> result = null;
       result = this.masterService.UpdateVehicle(vehicleMaster);
       return new ResponseEntity(result, HttpStatus.OK);
@@ -630,28 +675,61 @@ public class MasterController {
    }
 
    @PostMapping({"/add_user"})
-   public ResponseEntity<ResultWrapper<UserMaster>> AddUser(@Valid @RequestBody UserMaster userMaster) throws UnsupportedEncodingException, JsonProcessingException {
+   public ResponseEntity<ResultWrapper<UserMaster>> AddUser(@Valid @RequestBody UserMaster userMaster, javax.servlet.http.HttpServletRequest request) throws UnsupportedEncodingException, JsonProcessingException {
+      UserMaster user = imobilityUtils.getLoggedInUser(request);
+      if (user != null && user.getUserTypeId() == 3) {
+         ResultWrapper<UserMaster> result = new ResultWrapper<>();
+         result.setStatus(com.mes.eld_log.results.Result.FAIL);
+         result.setMessage("Unauthorized: Support Personnel cannot perform this action.");
+         return new ResponseEntity(result, HttpStatus.FORBIDDEN);
+      }
+      
+      if (user != null && user.getUserTypeId() == 2 && userMaster.getUserTypeId() == 3) {
+         userMaster.setClientId(user.getClientId());
+      }
+      
       ResultWrapper<UserMaster> result = null;
       result = this.masterService.AddUser(userMaster);
       return new ResponseEntity(result, HttpStatus.OK);
    }
 
    @PostMapping({"/view_user"})
-   public ResponseEntity<ResultWrapper<List<UserMasterViewDto>>> ViewUser(@Valid @RequestBody UserMasterCRUDDto userMasterCRUDDto) throws UnsupportedEncodingException, JsonProcessingException {
+   public ResponseEntity<ResultWrapper<List<UserMasterViewDto>>> ViewUser(@Valid @RequestBody UserMasterCRUDDto userMasterCRUDDto, javax.servlet.http.HttpServletRequest request) throws UnsupportedEncodingException, JsonProcessingException {
+      UserMaster user = imobilityUtils.getLoggedInUser(request);
+      if (user != null && user.getUserTypeId() == 3) {
+         ResultWrapper<List<UserMasterViewDto>> result = new ResultWrapper<>();
+         result.setStatus(com.mes.eld_log.results.Result.FAIL);
+         result.setMessage("Unauthorized: Support Personnel cannot perform this action.");
+         return new ResponseEntity(result, HttpStatus.FORBIDDEN);
+      }
       ResultWrapper<List<UserMasterViewDto>> result = null;
       result = this.masterService.ViewUser(userMasterCRUDDto);
       return new ResponseEntity(result, HttpStatus.OK);
    }
 
    @PostMapping({"/delete_user"})
-   public ResponseEntity<ResultWrapper<UserMaster>> DeleteUser(@Valid @RequestBody UserMasterCRUDDto userMasterCRUDDto) throws UnsupportedEncodingException, JsonProcessingException {
+   public ResponseEntity<ResultWrapper<UserMaster>> DeleteUser(@Valid @RequestBody UserMasterCRUDDto userMasterCRUDDto, javax.servlet.http.HttpServletRequest request) throws UnsupportedEncodingException, JsonProcessingException {
+      UserMaster user = imobilityUtils.getLoggedInUser(request);
+      if (user != null && user.getUserTypeId() == 3) {
+         ResultWrapper<UserMaster> result = new ResultWrapper<>();
+         result.setStatus(com.mes.eld_log.results.Result.FAIL);
+         result.setMessage("Unauthorized: Support Personnel cannot perform this action.");
+         return new ResponseEntity(result, HttpStatus.FORBIDDEN);
+      }
       ResultWrapper<UserMaster> result = null;
       result = this.masterService.DeleteUser(userMasterCRUDDto);
       return new ResponseEntity(result, HttpStatus.OK);
    }
 
    @PostMapping({"/update_user"})
-   public ResponseEntity<ResultWrapper<UserMaster>> UpdateUser(@Valid @RequestBody UserMaster userMaster) throws UnsupportedEncodingException, JsonProcessingException {
+   public ResponseEntity<ResultWrapper<UserMaster>> UpdateUser(@Valid @RequestBody UserMaster userMaster, javax.servlet.http.HttpServletRequest request) throws UnsupportedEncodingException, JsonProcessingException {
+      UserMaster user = imobilityUtils.getLoggedInUser(request);
+      if (user != null && user.getUserTypeId() == 3) {
+         ResultWrapper<UserMaster> result = new ResultWrapper<>();
+         result.setStatus(com.mes.eld_log.results.Result.FAIL);
+         result.setMessage("Unauthorized: Support Personnel cannot perform this action.");
+         return new ResponseEntity(result, HttpStatus.FORBIDDEN);
+      }
       ResultWrapper<UserMaster> result = null;
       result = this.masterService.UpdateUser(userMaster);
       return new ResponseEntity(result, HttpStatus.OK);
@@ -672,7 +750,14 @@ public class MasterController {
    }
 
    @PostMapping({"/add_company"})
-   public ResponseEntity<ResultWrapper<CompanyMaster>> AddCompany(@Valid @RequestBody CompanyMaster companyMaster) throws UnsupportedEncodingException, JsonProcessingException {
+   public ResponseEntity<ResultWrapper<CompanyMaster>> AddCompany(@Valid @RequestBody CompanyMaster companyMaster, javax.servlet.http.HttpServletRequest request) throws UnsupportedEncodingException, JsonProcessingException {
+      UserMaster user = imobilityUtils.getLoggedInUser(request);
+      if (user != null && user.getUserTypeId() == 3) {
+         ResultWrapper<CompanyMaster> result = new ResultWrapper<>();
+         result.setStatus(com.mes.eld_log.results.Result.FAIL);
+         result.setMessage("Unauthorized: Support Personnel cannot perform this action.");
+         return new ResponseEntity(result, HttpStatus.FORBIDDEN);
+      }
       ResultWrapper<CompanyMaster> result = null;
       result = this.masterService.AddCompany(companyMaster);
       return new ResponseEntity(result, HttpStatus.OK);
@@ -686,14 +771,28 @@ public class MasterController {
    }
 
    @PostMapping({"/delete_company"})
-   public ResponseEntity<ResultWrapper<CompanyMaster>> DeleteCompany(@Valid @RequestBody CompanyMasterCRUDDto companyMasterCRUDDto) throws UnsupportedEncodingException, JsonProcessingException {
+   public ResponseEntity<ResultWrapper<CompanyMaster>> DeleteCompany(@Valid @RequestBody CompanyMasterCRUDDto companyMasterCRUDDto, javax.servlet.http.HttpServletRequest request) throws UnsupportedEncodingException, JsonProcessingException {
+      UserMaster user = imobilityUtils.getLoggedInUser(request);
+      if (user != null && user.getUserTypeId() == 3) {
+         ResultWrapper<CompanyMaster> result = new ResultWrapper<>();
+         result.setStatus(com.mes.eld_log.results.Result.FAIL);
+         result.setMessage("Unauthorized: Support Personnel cannot perform this action.");
+         return new ResponseEntity(result, HttpStatus.FORBIDDEN);
+      }
       ResultWrapper<CompanyMaster> result = null;
       result = this.masterService.DeleteCompany(companyMasterCRUDDto);
       return new ResponseEntity(result, HttpStatus.OK);
    }
 
    @PostMapping({"/update_company"})
-   public ResponseEntity<ResultWrapper<CompanyMaster>> UpdateCompany(@Valid @RequestBody CompanyMaster companyMaster) throws UnsupportedEncodingException, JsonProcessingException {
+   public ResponseEntity<ResultWrapper<CompanyMaster>> UpdateCompany(@Valid @RequestBody CompanyMaster companyMaster, javax.servlet.http.HttpServletRequest request) throws UnsupportedEncodingException, JsonProcessingException {
+      UserMaster user = imobilityUtils.getLoggedInUser(request);
+      if (user != null && user.getUserTypeId() == 3) {
+         ResultWrapper<CompanyMaster> result = new ResultWrapper<>();
+         result.setStatus(com.mes.eld_log.results.Result.FAIL);
+         result.setMessage("Unauthorized: Support Personnel cannot perform this action.");
+         return new ResponseEntity(result, HttpStatus.FORBIDDEN);
+      }
       ResultWrapper<CompanyMaster> result = null;
       result = this.masterService.UpdateCompany(companyMaster);
       return new ResponseEntity(result, HttpStatus.OK);

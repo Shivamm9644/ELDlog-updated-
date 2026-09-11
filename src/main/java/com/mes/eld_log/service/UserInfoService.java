@@ -8,15 +8,15 @@ import com.mes.eld_log.results.ResultWrapper;
 import java.util.List;
 
 public interface UserInfoService {
-   ResultWrapper<EmployeeMasterCRUDDto> Login(UserLoginDto userLoginDto, String token);
+   ResultWrapper<EmployeeMasterCRUDDto> Login(UserLoginDto userLoginDto);
 
    ResultWrapper<EmployeeMasterCRUDDto> LoginDataByEmployeeId(UserLoginDto userLoginDto);
 
    ResultWrapper<String> UpdateLoginWithLoginLog(LoginUpdateDto loginUpdateDto);
 
-   ResultWrapper<EmployeeMasterCRUDDto> LoginByDate(UserLoginDto userLoginDto, String token);
+   ResultWrapper<EmployeeMasterCRUDDto> LoginByDate(UserLoginDto userLoginDto);
 
-   ResultWrapper<List<UserMasterViewDto>> LoginWeb(UserLoginDto userLoginDto, String token);
+   ResultWrapper<List<UserMasterViewDto>> LoginWeb(UserLoginDto userLoginDto);
 
    ResultWrapper<UserLoginDto> ForgotPassword(UserLoginDto userLoginDto);
 

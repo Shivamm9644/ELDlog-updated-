@@ -48,6 +48,11 @@ public class DriveringStatus implements Serializable {
    private Integer isVisible;
    private String email;
    private Integer isActive = 1;
+    private String cdlNo;
+    private Integer cdlStateId;
+    private Integer cdlCountryId;
+    private String cdlStateCode;
+
    private long receivedTimestamp;
    private long updatedTimestamp;
 
@@ -751,4 +756,30 @@ public class DriveringStatus implements Serializable {
    public void setUpdatedTimestamp(final long updatedTimestamp) {
       this.updatedTimestamp = updatedTimestamp;
    }
+
+    public String getCdlNo() {
+        return this.cdlNo;
+    }
+    public void setCdlNo(String cdlNo) {
+        this.cdlNo = cdlNo;
+    }
+    public Integer getCdlStateId() {
+        return this.cdlStateId;
+    }
+    public void setCdlStateId(Integer cdlStateId) {
+        this.cdlStateId = cdlStateId;
+    }
+    public Integer getCdlCountryId() {
+        return this.cdlCountryId;
+    }
+    public void setCdlCountryId(Integer cdlCountryId) {
+        this.cdlCountryId = cdlCountryId;
+    }
+    public String getCdlStateCode() {
+        return this.cdlStateCode;
+    }
+    public void setCdlStateCode(String cdlStateCode) {
+        this.cdlStateCode = cdlStateCode;
+    }
+
 }

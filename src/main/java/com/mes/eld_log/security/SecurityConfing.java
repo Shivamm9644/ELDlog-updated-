@@ -1,6 +1,7 @@
 package com.mes.eld_log.security;
 
 import javax.annotation.Resource;
+import javax.servlet.http.HttpServletResponse;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -10,7 +11,6 @@ import org.springframework.security.config.annotation.method.configuration.Enabl
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.config.annotation.web.configuration.WebSecurityConfigurerAdapter;
-import org.springframework.security.config.annotation.web.configurers.ExpressionUrlAuthorizationConfigurer.AuthorizedUrl;
 import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
@@ -27,8 +27,6 @@ public class SecurityConfing extends WebSecurityConfigurerAdapter {
             name = "userInfoService"
     )
     private UserDetailsService userDetailsService;
-    @Autowired
-    private org.springframework.security.web.AuthenticationEntryPoint authEntryPoint;
 
     @Bean
     public AuthenticationManager authenticationManagerBean() throws Exception {
@@ -45,8 +43,18 @@ public class SecurityConfing extends WebSecurityConfigurerAdapter {
         return new AuthenticationFilter();
     }
 
+    @Override
     protected void configure(HttpSecurity http) throws Exception {
         http.cors().and().csrf().disable()
+                .httpBasic().disable() // Disables HTTP Basic Authentication popup
+                .formLogin().disable() // Disables default form login
+                .exceptionHandling().authenticationEntryPoint((request, response, authException) -> {
+                    // Send 401 JSON response WITHOUT WWW-Authenticate header to prevent browser popup
+                    response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
+                    response.setContentType("application/json");
+                    response.getWriter().write("{\"status\":\"FAIL\",\"message\":\"Unauthorized access\"}");
+                })
+                .and()
                 .authorizeRequests()
                 .antMatchers(org.springframework.http.HttpMethod.OPTIONS, "/**").permitAll()
                 .antMatchers("/auth/**", "/master/**", "/dispatch/**", "/service/**", "/eldchart/**", "/eldChart/**", "/userInfo/**", "/download/**", "/scheduledcalls/**").permitAll()

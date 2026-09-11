@@ -13,7 +13,7 @@ import java.io.UnsupportedEncodingException;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.UUID;
+
 import javax.validation.Valid;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
@@ -46,9 +46,8 @@ public class AuthenticationController {
 
    @PostMapping({"/login"})
    public ResponseEntity<ResultWrapper<EmployeeMasterCRUDDto>> Login(@Valid @RequestBody UserLoginDto userLoginDto) throws UnsupportedEncodingException, JsonProcessingException {
-      String token = UUID.randomUUID().toString();
       ResultWrapper<EmployeeMasterCRUDDto> result = null;
-      result = this.userInfoService.Login(userLoginDto, token);
+      result = this.userInfoService.Login(userLoginDto);
       return new ResponseEntity(result, HttpStatus.OK);
    }
 
@@ -68,17 +67,15 @@ public class AuthenticationController {
 
    @PostMapping({"/login_by_date"})
    public ResponseEntity<ResultWrapper<EmployeeMasterCRUDDto>> LoginByDate(@Valid @RequestBody UserLoginDto userLoginDto) throws UnsupportedEncodingException, JsonProcessingException {
-      String token = UUID.randomUUID().toString();
       ResultWrapper<EmployeeMasterCRUDDto> result = null;
-      result = this.userInfoService.LoginByDate(userLoginDto, token);
+      result = this.userInfoService.LoginByDate(userLoginDto);
       return new ResponseEntity(result, HttpStatus.OK);
    }
 
    @PostMapping({"/login_web"})
    public ResponseEntity<ResultWrapper<List<UserMasterViewDto>>> LoginWeb(@Valid @RequestBody UserLoginDto userLoginDto) throws UnsupportedEncodingException, JsonProcessingException {
       ResultWrapper<List<UserMasterViewDto>> result = null;
-      String token = UUID.randomUUID().toString();
-      result = this.userInfoService.LoginWeb(userLoginDto, token);
+      result = this.userInfoService.LoginWeb(userLoginDto);
       return new ResponseEntity(result, HttpStatus.OK);
    }
 

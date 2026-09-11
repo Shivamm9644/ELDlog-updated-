@@ -13,7 +13,10 @@ public interface DriveringStatusRepo extends MongoRepository<DriveringStatus, St
    @Query("{ 'driverId' : ?0, 'utcDateTime' : ?1 }")
    DriveringStatusViewDto findAndViewDriverStatusById(long driverId, long utcDateTime);
 
-   @Query("{ 'driverId' : ?0, 'dateTime' : ?1 }")
+   @Query("{ 'driverId' : ?0, 'utcDateTime' : ?1 }")
+   List<DriveringStatusViewDto> findListAndViewDriverStatusById(long driverId, long utcDateTime);
+
+   @Query("{ 'driverId' : ?0, 'dateTime' : ?1, 'isActive' : { $in: [0, 2] } }")
    List<DriveringStatusViewDto> findAndViewDriverStatusByDate(long driverId, String dateTime);
 
    @Query("{ 'driverId' : ?0, 'utcDateTime' : { $gte: ?1, $lte: ?2 } }")
